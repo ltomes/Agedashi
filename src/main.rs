@@ -1,11 +1,9 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use regex::Regex;
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Read, Write as IoWrite};
-use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::NamedTempFile;
 
@@ -60,64 +58,6 @@ impl TerraformGraph {
     }
 }
 
-fn get_cache_dir() -> Result<PathBuf> {
-    let cache_dir = if let Some(cache_home) = dirs::cache_dir() {
-        cache_home.join("agedashi").join("icons")
-    } else {
-        // Fallback to home directory
-        dirs::home_dir()
-            .context("Could not determine home directory")?
-            .join(".cache")
-            .join("agedashi")
-            .join("icons")
-    };
-
-    fs::create_dir_all(&cache_dir)
-        .context("Failed to create cache directory")?;
-
-    Ok(cache_dir)
-}
-
-fn url_to_filename(url: &str) -> String {
-    // Create a hash of the URL for the filename
-    let mut hasher = Sha256::new();
-    hasher.update(url.as_bytes());
-    let hash = format!("{:x}", hasher.finalize());
-
-    // Extract extension from URL
-    let ext = url.split('.').last().unwrap_or("png");
-
-    format!("{}.{}", &hash[..16], ext)
-}
-
-fn download_icon(url: &str, cache_dir: &Path) -> Result<PathBuf> {
-    let filename = url_to_filename(url);
-    let cache_path = cache_dir.join(&filename);
-
-    // Return cached file if it exists
-    if cache_path.exists() {
-        return Ok(cache_path);
-    }
-
-    // Download the icon
-    eprintln!("Downloading icon: {}", url);
-    let response = reqwest::blocking::get(url)
-        .context(format!("Failed to download icon from {}", url))?;
-
-    if !response.status().is_success() {
-        anyhow::bail!("Failed to download icon: HTTP {}", response.status());
-    }
-
-    let bytes = response.bytes()
-        .context("Failed to read icon data")?;
-
-    // Save to cache
-    fs::write(&cache_path, &bytes)
-        .context("Failed to save icon to cache")?;
-
-    Ok(cache_path)
-}
-
 fn parse_dot_graph(dot_content: &str) -> Result<TerraformGraph> {
     let mut graph = TerraformGraph::new();
 
@@ -170,78 +110,65 @@ fn parse_dot_graph(dot_content: &str) -> Result<TerraformGraph> {
     Ok(graph)
 }
 
-fn get_aws_icon_url(resource_type: &str) -> &str {
-    // Using AWS Architecture Icons from GitHub
+fn get_service_info(resource_type: &str) -> (&str, &str, &str) {
+    // Returns (category, color, icon_char)
     match resource_type {
         // Compute
-        t if t.contains("aws_instance") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Compute/EC2.png",
-        t if t.contains("aws_lambda") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Compute/Lambda.png",
-        t if t.contains("aws_ecs") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Compute/ECS.png",
-        t if t.contains("aws_eks") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Compute/EKS.png",
-        t if t.contains("aws_autoscaling") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Compute/EC2AutoScaling.png",
+        t if t.contains("aws_instance") => ("EC2", "#FF9900", "💻"),
+        t if t.contains("aws_lambda") => ("Lambda", "#FF9900", "λ"),
+        t if t.contains("aws_ecs") => ("ECS", "#FF9900", "🐳"),
+        t if t.contains("aws_eks") => ("EKS", "#FF9900", "☸"),
+        t if t.contains("aws_autoscaling") => ("AutoScaling", "#FF9900", "📈"),
 
         // Database
-        t if t.contains("aws_db_instance") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Database/RDS.png",
-        t if t.contains("aws_db_subnet_group") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Database/RDS.png",
-        t if t.contains("aws_dynamodb") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Database/DynamoDB.png",
-        t if t.contains("aws_elasticache") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Database/ElastiCache.png",
-        t if t.contains("aws_redshift") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Database/Redshift.png",
+        t if t.contains("aws_db_instance") => ("RDS", "#3B48CC", "🗄"),
+        t if t.contains("aws_db_subnet_group") => ("RDS", "#3B48CC", "🗄"),
+        t if t.contains("aws_dynamodb") => ("DynamoDB", "#3B48CC", "⚡"),
+        t if t.contains("aws_elasticache") => ("ElastiCache", "#3B48CC", "💾"),
+        t if t.contains("aws_redshift") => ("Redshift", "#3B48CC", "🔷"),
 
         // Network
-        t if t.contains("aws_elb") || t.contains("aws_lb") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/NetworkingContentDelivery/ElasticLoadBalancing.png",
-        t if t.contains("aws_vpc") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/NetworkingContentDelivery/VPC.png",
-        t if t.contains("aws_subnet") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/NetworkingContentDelivery/VPC.png",
-        t if t.contains("aws_security_group") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/SecurityIdentityCompliance/IAM.png",
-        t if t.contains("aws_route53") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/NetworkingContentDelivery/Route53.png",
-        t if t.contains("aws_cloudfront") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/NetworkingContentDelivery/CloudFront.png",
-        t if t.contains("aws_api_gateway") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/ApplicationIntegration/APIGateway.png",
+        t if t.contains("aws_elb") || t.contains("aws_lb") => ("ELB", "#8C4FFF", "⚖"),
+        t if t.contains("aws_vpc") => ("VPC", "#8C4FFF", "🌐"),
+        t if t.contains("aws_subnet") => ("Subnet", "#8C4FFF", "📡"),
+        t if t.contains("aws_security_group") => ("SecurityGroup", "#DD344C", "🛡"),
+        t if t.contains("aws_route53") => ("Route53", "#8C4FFF", "🌍"),
+        t if t.contains("aws_cloudfront") => ("CloudFront", "#8C4FFF", "☁"),
+        t if t.contains("aws_api_gateway") => ("APIGateway", "#8C4FFF", "🚪"),
 
         // Storage
-        t if t.contains("aws_s3") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Storage/SimpleStorageService.png",
-        t if t.contains("aws_ebs") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Storage/EBS.png",
-        t if t.contains("aws_efs") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Storage/EFS.png",
+        t if t.contains("aws_s3") => ("S3", "#7AA116", "🪣"),
+        t if t.contains("aws_ebs") => ("EBS", "#7AA116", "💽"),
+        t if t.contains("aws_efs") => ("EFS", "#7AA116", "📁"),
 
         // Security
-        t if t.contains("aws_iam") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/SecurityIdentityCompliance/IAM.png",
-        t if t.contains("aws_kms") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/SecurityIdentityCompliance/KMS.png",
+        t if t.contains("aws_iam") => ("IAM", "#DD344C", "🔑"),
+        t if t.contains("aws_kms") => ("KMS", "#DD344C", "🔐"),
 
         // Integration
-        t if t.contains("aws_sns") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/ApplicationIntegration/SimpleNotificationService.png",
-        t if t.contains("aws_sqs") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/ApplicationIntegration/SQS.png",
+        t if t.contains("aws_sns") => ("SNS", "#FF4F8B", "📢"),
+        t if t.contains("aws_sqs") => ("SQS", "#FF4F8B", "📬"),
 
         // Analytics
-        t if t.contains("aws_kinesis") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Analytics/Kinesis.png",
+        t if t.contains("aws_kinesis") => ("Kinesis", "#8C4FFF", "📊"),
 
         // Default
-        _ => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Compute/EC2.png",
+        _ => ("Service", "#232F3E", "🔧"),
     }
 }
 
-fn get_service_color(resource_type: &str) -> &str {
-    match resource_type {
-        t if t.contains("aws_instance") || t.contains("aws_lambda") || t.contains("aws_ecs") || t.contains("aws_eks") => "#FF9900",
-        t if t.contains("aws_db_") || t.contains("aws_dynamodb") || t.contains("aws_elasticache") || t.contains("aws_redshift") => "#3B48CC",
-        t if t.contains("aws_vpc") || t.contains("aws_subnet") || t.contains("aws_lb") || t.contains("aws_elb") || t.contains("aws_route53") || t.contains("aws_cloudfront") || t.contains("aws_api_gateway") => "#8C4FFF",
-        t if t.contains("aws_s3") || t.contains("aws_ebs") || t.contains("aws_efs") => "#7AA116",
-        t if t.contains("aws_iam") || t.contains("aws_kms") || t.contains("aws_security_group") => "#DD344C",
-        t if t.contains("aws_sns") || t.contains("aws_sqs") => "#FF4F8B",
-        t if t.contains("aws_kinesis") => "#8C4FFF",
-        _ => "#232F3E",
-    }
-}
-
-fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path) -> Result<String> {
+fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str) -> String {
     let mut dot = String::new();
 
-    // Graph header
+    // Graph header with modern styling
     dot.push_str(&format!("digraph \"{}\" {{\n", name));
-    dot.push_str("    node [shape=box, style=filled, fontname=\"Arial\", fontsize=12];\n");
-    dot.push_str("    edge [color=\"#666666\", penwidth=2];\n");
+    dot.push_str("    graph [fontname=\"Arial\", fontsize=14, bgcolor=\"#F5F5F5\", pad=\"0.5\"];\n");
+    dot.push_str("    node [fontname=\"Arial\", fontsize=12, style=\"filled,rounded\", shape=box, margin=\"0.3,0.2\"];\n");
+    dot.push_str("    edge [fontname=\"Arial\", fontsize=10, color=\"#555555\", penwidth=2, arrowsize=0.8];\n");
     dot.push_str(&format!("    rankdir={};\n", direction));
-    dot.push_str("    bgcolor=\"#FFFFFF\";\n");
     dot.push_str("    splines=ortho;\n");
-    dot.push_str("    nodesep=1.0;\n");
-    dot.push_str("    ranksep=1.0;\n\n");
+    dot.push_str("    nodesep=0.8;\n");
+    dot.push_str("    ranksep=1.2;\n\n");
 
     // Filter AWS resources only
     let aws_resources: Vec<_> = graph.resources.iter()
@@ -250,20 +177,18 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
 
     let mut node_map: HashMap<String, String> = HashMap::new();
 
-    // Generate nodes
+    // Generate nodes with styled boxes
     for (idx, resource) in aws_resources.iter().enumerate() {
         let node_id = format!("node_{}", idx);
-        let icon_url = get_aws_icon_url(&resource.resource_type);
-        let color = get_service_color(&resource.resource_type);
+        let (service_name, color, icon) = get_service_info(&resource.resource_type);
 
-        // Download and cache the icon
-        let icon_path = download_icon(icon_url, cache_dir)?;
-        let icon_path_str = icon_path.to_string_lossy();
+        // Create a nice label with service type and resource name
+        let label = format!("{} {}\\n{}", icon, service_name, resource.label);
 
-        // Create node with local image path
+        // Create node with styling
         dot.push_str(&format!(
-            "    {} [label=\"{}\", image=\"{}\", fillcolor=\"{}\", imagescale=true, fixedsize=true, width=2, height=2];\n",
-            node_id, resource.label, icon_path_str, color
+            "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\"];\n",
+            node_id, label, color
         ));
 
         node_map.insert(resource.name.clone(), node_id);
@@ -279,7 +204,7 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
     }
 
     dot.push_str("}\n");
-    Ok(dot)
+    dot
 }
 
 fn execute_dot_command(dot_content: &str, output_format: &str, output_file: &str) -> Result<()> {
@@ -337,7 +262,7 @@ fn main() -> Result<()> {
     let graph = parse_dot_graph(&input).context("Failed to parse Terraform graph")?;
 
     if graph.resources.is_empty() {
-        eprintln!("Warning: No AWS resources found in the Terraform graph.");
+        eprintln!("Warning: No resources found in the Terraform graph.");
     }
 
     eprintln!("Found {} resources and {} edges", graph.resources.len(), graph.edges.len());
@@ -352,12 +277,8 @@ fn main() -> Result<()> {
 
     eprintln!("Visualizing {} AWS resources...", aws_count);
 
-    // Get cache directory
-    let cache_dir = get_cache_dir()?;
-    eprintln!("Icon cache: {}", cache_dir.display());
-
-    // Generate DOT graph (will download icons as needed)
-    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir)?;
+    // Generate DOT graph
+    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction);
 
     // For debugging: save DOT file
     if std::env::var("AGEDASHI_DEBUG").is_ok() {
