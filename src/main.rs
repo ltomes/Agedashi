@@ -248,6 +248,8 @@ fn main() -> Result<()> {
         eprintln!("Warning: No AWS resources found in the Terraform graph.");
     }
 
+    eprintln!("Found {} resources and {} edges", graph.resources.len(), graph.edges.len());
+
     // Generate Python code
     let python_code = generate_python_code(&graph, &cli.name, &cli.direction, &cli.output);
 
