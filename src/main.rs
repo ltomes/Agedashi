@@ -93,6 +93,121 @@ fn extract_embedded_icons(cache_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+fn get_icon_url(name: &str) -> String {
+    // Using diagrams library's AWS icons from GitHub (MIT licensed)
+    // These are high-quality PNG icons that work well with GraphViz
+    let base_url = "https://raw.githubusercontent.com/mingrammer/diagrams/master/resources/aws";
+
+    match name {
+        // Compute
+        "ec2" => format!("{}/compute/ec2.png", base_url),
+        "lambda" => format!("{}/compute/lambda.png", base_url),
+        "ecs" => format!("{}/compute/elastic-container-service.png", base_url),
+        "eks" => format!("{}/compute/elastic-kubernetes-service.png", base_url),
+        "autoscaling" => format!("{}/compute/auto-scaling.png", base_url),
+
+        // Database
+        "rds" => format!("{}/database/rds.png", base_url),
+        "dynamodb" => format!("{}/database/dynamodb.png", base_url),
+        "elasticache" => format!("{}/database/elasticache.png", base_url),
+        "redshift" => format!("{}/database/redshift.png", base_url),
+
+        // Network
+        "elb" => format!("{}/network/elastic-load-balancing.png", base_url),
+        "vpc" => format!("{}/network/vpc.png", base_url),
+        "subnet" => format!("{}/network/vpc.png", base_url), // VPC icon for subnets
+        "route53" => format!("{}/network/route-53.png", base_url),
+        "cloudfront" => format!("{}/network/cloudfront.png", base_url),
+        "apigateway" => format!("{}/network/api-gateway.png", base_url),
+
+        // Storage
+        "s3" => format!("{}/storage/s3.png", base_url),
+        "ebs" => format!("{}/storage/elastic-block-store.png", base_url),
+        "efs" => format!("{}/storage/elastic-file-system.png", base_url),
+
+        // Security
+        "iam" => format!("{}/security/iam.png", base_url),
+        "kms" => format!("{}/security/key-management-service.png", base_url),
+
+        // Integration
+        "sns" => format!("{}/integration/simple-notification-service.png", base_url),
+        "sqs" => format!("{}/integration/simple-queue-service.png", base_url),
+
+        // Analytics
+        "kinesis" => format!("{}/analytics/kinesis.png", base_url),
+
+        _ => String::new(),
+    }
+}
+
+fn download_icon(name: &str, cache_dir: &Path) -> Result<()> {
+    let url = get_icon_url(name);
+    if url.is_empty() {
+        return Ok(()); // Skip unknown icons
+    }
+
+    let icon_path = cache_dir.join(format!("{}.png", name));
+
+    // Skip if already exists
+    if icon_path.exists() {
+        return Ok(());
+    }
+
+    // Download the icon using ureq (simple, no OpenSSL issues)
+    match ureq::get(&url).timeout(std::time::Duration::from_secs(10)).call() {
+        Ok(response) => {
+            let mut bytes = Vec::new();
+            response.into_reader().read_to_end(&mut bytes)?;
+            fs::write(&icon_path, bytes)
+                .context(format!("Failed to write icon: {}", name))?;
+        }
+        Err(_) => {
+            // Silently skip download errors - will use fallback boxes
+        }
+    }
+
+    Ok(())
+}
+
+fn download_icons_as_needed(cache_dir: &Path) -> Result<()> {
+    let icon_names = vec![
+        "ec2", "lambda", "ecs", "eks", "autoscaling",
+        "rds", "dynamodb", "elasticache", "redshift",
+        "elb", "vpc", "subnet", "route53", "cloudfront", "apigateway",
+        "s3", "ebs", "efs",
+        "iam", "kms",
+        "sns", "sqs",
+        "kinesis",
+    ];
+
+    // Check if we need to download any icons
+    let needs_download = icon_names.iter().any(|name| {
+        !cache_dir.join(format!("{}.png", name)).exists()
+    });
+
+    if !needs_download {
+        return Ok(()); // All icons already cached
+    }
+
+    eprintln!("Downloading AWS service icons (first run)...");
+
+    let mut downloaded_count = 0;
+    for name in &icon_names {
+        download_icon(name, cache_dir)?;
+        if cache_dir.join(format!("{}.png", name)).exists() {
+            downloaded_count += 1;
+        }
+    }
+
+    if downloaded_count > 0 {
+        eprintln!("Downloaded {} icons successfully", downloaded_count);
+    } else {
+        eprintln!("Note: Icon download failed (network issue). Using fallback styled boxes.");
+    }
+
+    Ok(())
+}
+
 fn parse_dot_graph(dot_content: &str) -> Result<TerraformGraph> {
     let mut graph = TerraformGraph::new();
 
@@ -216,7 +331,7 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
     // Generate nodes
     for (idx, resource) in aws_resources.iter().enumerate() {
         let node_id = format!("node_{}", idx);
-        let (icon_name, service_name, color, fallback_emoji) = get_service_info(&resource.resource_type);
+        let (icon_name, service_name, color, _fallback_emoji) = get_service_info(&resource.resource_type);
 
         let icon_path = cache_dir.join(format!("{}.png", icon_name));
 
@@ -326,15 +441,28 @@ fn main() -> Result<()> {
 
     eprintln!("Visualizing {} AWS resources...", aws_count);
 
-    // Get cache directory and extract embedded icons
+    // Get cache directory and setup icons
     let cache_dir = get_cache_dir()?;
+
+    // First, extract any embedded icons (from build-time)
     extract_embedded_icons(&cache_dir)?;
 
-    let embedded_count = get_embedded_icons().len();
-    if embedded_count > 0 {
-        eprintln!("Using {} embedded AWS icons", embedded_count);
+    // Then, download any missing icons from the internet (cached)
+    download_icons_as_needed(&cache_dir)?;
+
+    // Count how many icons we have available
+    let icon_count = ["ec2", "lambda", "ecs", "eks", "autoscaling",
+                      "rds", "dynamodb", "elasticache", "redshift",
+                      "elb", "vpc", "subnet", "route53", "cloudfront", "apigateway",
+                      "s3", "ebs", "efs", "iam", "kms", "sns", "sqs", "kinesis"]
+        .iter()
+        .filter(|name| cache_dir.join(format!("{}.png", name)).exists())
+        .count();
+
+    if icon_count > 0 {
+        eprintln!("Using {} AWS service icons", icon_count);
     } else {
-        eprintln!("No icons embedded - using styled boxes (see icons/README.md to add icons)");
+        eprintln!("Using fallback styled boxes (icons unavailable)");
     }
 
     // Generate DOT graph

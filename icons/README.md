@@ -1,10 +1,21 @@
 # AWS Icons for Agedashi
 
-Agedashi embeds AWS Architecture Icons directly in the binary for offline use.
+Agedashi automatically downloads and caches AWS Architecture Icons on first run.
 
-## Getting AWS Icons
+## Automatic Icon Download (Default)
 
-### Option 1: Official AWS Architecture Icons (Recommended)
+On first run, Agedashi automatically:
+1. Downloads AWS service icons from the diagrams library (MIT licensed)
+2. Caches them to `~/.cache/agedashi/icons/`
+3. Uses cached icons for all future runs (works offline after first download)
+
+No manual setup required! Just run the tool and icons will be downloaded automatically.
+
+## Manual Icon Setup (Optional)
+
+If you prefer to use official AWS icons or customize the icon set:
+
+### Option 1: Official AWS Architecture Icons
 
 1. Download official AWS Architecture Icons:
    - Visit: https://aws.amazon.com/architecture/icons/
