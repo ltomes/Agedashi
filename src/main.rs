@@ -98,7 +98,8 @@ fn parse_dot_graph(dot_content: &str) -> Result<TerraformGraph> {
 
     // Regex to match node definitions
     let node_re = Regex::new(r#"\[root\] ([^\s]+) \(([^)]+)\)"#)?;
-    let edge_re = Regex::new(r#"\[root\] ([^\s]+) .*-> \[root\] ([^\s]+)"#)?;
+    // Updated edge regex to handle quoted format: "[root] aws_instance.web (expand)" -> "[root] aws_vpc.main (expand)"
+    let edge_re = Regex::new(r#""\[root\] ([^\s]+) \([^)]+\)" -> "\[root\] ([^\s]+) \([^)]+\)""#)?;
     let label_re = Regex::new(r#"label = "([^"]+)""#)?;
 
     let mut node_map: HashMap<String, (String, String)> = HashMap::new();
@@ -197,13 +198,13 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
 
     // Graph header with modern styling
     dot.push_str(&format!("digraph \"{}\" {{\n", name));
-    dot.push_str("    graph [fontname=\"Arial\", fontsize=14, bgcolor=\"#F5F5F5\", pad=\"0.5\"];\n");
-    dot.push_str("    node [fontname=\"Arial\", fontsize=12, style=\"filled,rounded\", shape=box, margin=\"0.3,0.2\"];\n");
-    dot.push_str("    edge [fontname=\"Arial\", fontsize=10, color=\"#555555\", penwidth=2, arrowsize=0.8];\n");
+    dot.push_str("    graph [fontname=\"Arial\", fontsize=14, bgcolor=\"#FFFFFF\", pad=\"0.5\"];\n");
+    dot.push_str("    node [fontname=\"Arial\", fontsize=11];\n");
+    dot.push_str("    edge [fontname=\"Arial\", fontsize=10, color=\"#2D3436\", penwidth=2.0, arrowsize=0.7];\n");
     dot.push_str(&format!("    rankdir={};\n", direction));
     dot.push_str("    splines=ortho;\n");
-    dot.push_str("    nodesep=0.8;\n");
-    dot.push_str("    ranksep=1.2;\n\n");
+    dot.push_str("    nodesep=1.0;\n");
+    dot.push_str("    ranksep=1.5;\n\n");
 
     // Filter AWS resources only
     let aws_resources: Vec<_> = graph.resources.iter()
@@ -220,17 +221,18 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
         let icon_path = cache_dir.join(format!("{}.png", icon_name));
 
         // Use icon if available, otherwise use colored box with emoji
-        if icon_path.exists() {
+        if icon_path.exists() && !icon_name.is_empty() {
             let icon_path_str = icon_path.to_string_lossy();
+            // GraphViz: image with label below, similar to diagrams library
             dot.push_str(&format!(
-                "    {} [label=\"{}\", image=\"{}\", fillcolor=\"{}\", imagescale=true, fixedsize=true, width=2, height=2];\n",
-                node_id, resource.label, icon_path_str, color
+                "    {} [label=\"{}\", image=\"{}\", shape=none, labelloc=b, fontsize=10];\n",
+                node_id, resource.label, icon_path_str
             ));
         } else {
-            // Fallback to styled box with emoji
+            // Fallback to styled box with emoji and service name
             let label = format!("{} {}\\n{}", fallback_emoji, service_name, resource.label);
             dot.push_str(&format!(
-                "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\"];\n",
+                "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box];\n",
                 node_id, label, color
             ));
         }
@@ -335,14 +337,16 @@ fn main() -> Result<()> {
     // Generate DOT graph
     let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir);
 
-    // For debugging: save DOT file
-    if std::env::var("AGEDASHI_DEBUG").is_ok() {
-        fs::write(format!("{}.dot", cli.name), &dot_content)?;
-        eprintln!("DOT file saved to: {}.dot", cli.name);
-    }
-
     // Output file path
     let output_file = format!("{}.{}", cli.name, cli.output);
+
+    // For debugging: save DOT file in debug mode
+    if std::env::var("AGEDASHI_DEBUG").is_ok() {
+        let dot_file = format!("{}.dot", cli.name);
+        fs::write(&dot_file, &dot_content)
+            .context(format!("Failed to save DOT file: {}", dot_file))?;
+        eprintln!("Debug: DOT file saved to {}", dot_file);
+    }
 
     // Execute dot command
     execute_dot_command(&dot_content, &cli.output, &output_file)?;
