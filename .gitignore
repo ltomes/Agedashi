@@ -23,6 +23,9 @@ override.tf.json
 *.jpg
 *.dot
 
+# But keep test fixtures
+!test/*.dot
+
 # IDE
 .vscode/
 .idea/
