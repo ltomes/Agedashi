@@ -1,9 +1,11 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use regex::Regex;
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Read, Write as IoWrite};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::NamedTempFile;
 
@@ -56,6 +58,64 @@ impl TerraformGraph {
     fn add_edge(&mut self, from: String, to: String) {
         self.edges.push((from, to));
     }
+}
+
+fn get_cache_dir() -> Result<PathBuf> {
+    let cache_dir = if let Some(cache_home) = dirs::cache_dir() {
+        cache_home.join("terrok").join("icons")
+    } else {
+        // Fallback to home directory
+        dirs::home_dir()
+            .context("Could not determine home directory")?
+            .join(".cache")
+            .join("terrok")
+            .join("icons")
+    };
+
+    fs::create_dir_all(&cache_dir)
+        .context("Failed to create cache directory")?;
+
+    Ok(cache_dir)
+}
+
+fn url_to_filename(url: &str) -> String {
+    // Create a hash of the URL for the filename
+    let mut hasher = Sha256::new();
+    hasher.update(url.as_bytes());
+    let hash = format!("{:x}", hasher.finalize());
+
+    // Extract extension from URL
+    let ext = url.split('.').last().unwrap_or("png");
+
+    format!("{}.{}", &hash[..16], ext)
+}
+
+fn download_icon(url: &str, cache_dir: &Path) -> Result<PathBuf> {
+    let filename = url_to_filename(url);
+    let cache_path = cache_dir.join(&filename);
+
+    // Return cached file if it exists
+    if cache_path.exists() {
+        return Ok(cache_path);
+    }
+
+    // Download the icon
+    eprintln!("Downloading icon: {}", url);
+    let response = reqwest::blocking::get(url)
+        .context(format!("Failed to download icon from {}", url))?;
+
+    if !response.status().is_success() {
+        anyhow::bail!("Failed to download icon: HTTP {}", response.status());
+    }
+
+    let bytes = response.bytes()
+        .context("Failed to read icon data")?;
+
+    // Save to cache
+    fs::write(&cache_path, &bytes)
+        .context("Failed to save icon to cache")?;
+
+    Ok(cache_path)
 }
 
 fn parse_dot_graph(dot_content: &str) -> Result<TerraformGraph> {
@@ -170,7 +230,7 @@ fn get_service_color(resource_type: &str) -> &str {
     }
 }
 
-fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str) -> String {
+fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path) -> Result<String> {
     let mut dot = String::new();
 
     // Graph header
@@ -196,10 +256,14 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str) -> St
         let icon_url = get_aws_icon_url(&resource.resource_type);
         let color = get_service_color(&resource.resource_type);
 
-        // Create node with image
+        // Download and cache the icon
+        let icon_path = download_icon(icon_url, cache_dir)?;
+        let icon_path_str = icon_path.to_string_lossy();
+
+        // Create node with local image path
         dot.push_str(&format!(
             "    {} [label=\"{}\", image=\"{}\", fillcolor=\"{}\", imagescale=true, fixedsize=true, width=2, height=2];\n",
-            node_id, resource.label, icon_url, color
+            node_id, resource.label, icon_path_str, color
         ));
 
         node_map.insert(resource.name.clone(), node_id);
@@ -215,7 +279,7 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str) -> St
     }
 
     dot.push_str("}\n");
-    dot
+    Ok(dot)
 }
 
 fn execute_dot_command(dot_content: &str, output_format: &str, output_file: &str) -> Result<()> {
@@ -288,8 +352,12 @@ fn main() -> Result<()> {
 
     eprintln!("Visualizing {} AWS resources...", aws_count);
 
-    // Generate DOT graph
-    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction);
+    // Get cache directory
+    let cache_dir = get_cache_dir()?;
+    eprintln!("Icon cache: {}", cache_dir.display());
+
+    // Generate DOT graph (will download icons as needed)
+    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir)?;
 
     // For debugging: save DOT file
     if std::env::var("TERROK_DEBUG").is_ok() {
