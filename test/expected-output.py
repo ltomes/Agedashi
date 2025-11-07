@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-This is the expected Python code that Terrok would generate
+This is the expected Python code that Agedashi would generate
 from the sample-graph.dot file.
 
 To test this, you would need:

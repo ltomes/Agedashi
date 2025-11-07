@@ -10,8 +10,8 @@ use std::process::Command;
 use tempfile::NamedTempFile;
 
 #[derive(Parser, Debug)]
-#[command(name = "terrok")]
-#[command(about = "Generate infrastructure diagrams from Terraform graph output", long_about = None)]
+#[command(name = "agedashi")]
+#[command(about = "Generate infrastructure diagrams from Terraform/OpenTofu graph output - making tofu pretty!", long_about = None)]
 struct Cli {
     /// Output format (svg, png, pdf, jpg)
     #[arg(short, long, default_value = "png")]
@@ -62,13 +62,13 @@ impl TerraformGraph {
 
 fn get_cache_dir() -> Result<PathBuf> {
     let cache_dir = if let Some(cache_home) = dirs::cache_dir() {
-        cache_home.join("terrok").join("icons")
+        cache_home.join("agedashi").join("icons")
     } else {
         // Fallback to home directory
         dirs::home_dir()
             .context("Could not determine home directory")?
             .join(".cache")
-            .join("terrok")
+            .join("agedashi")
             .join("icons")
     };
 
@@ -330,7 +330,7 @@ fn main() -> Result<()> {
         .context("Failed to read from stdin")?;
 
     if input.trim().is_empty() {
-        anyhow::bail!("No input provided. Please pipe terraform graph output to terrok.");
+        anyhow::bail!("No input provided. Please pipe terraform graph output to agedashi.");
     }
 
     // Parse the Terraform graph
@@ -360,7 +360,7 @@ fn main() -> Result<()> {
     let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir)?;
 
     // For debugging: save DOT file
-    if std::env::var("TERROK_DEBUG").is_ok() {
+    if std::env::var("AGEDASHI_DEBUG").is_ok() {
         fs::write(format!("{}.dot", cli.name), &dot_content)?;
         eprintln!("DOT file saved to: {}.dot", cli.name);
     }

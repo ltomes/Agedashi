@@ -1,11 +1,11 @@
-# Testing Terrok
+# Testing Agedashi
 
-This directory contains test files for Terrok.
+This directory contains test files for Agedashi.
 
 ## Test Files
 
 - `sample-graph.dot` - Sample Terraform graph output in DOT format
-- `expected-output.py` - The Python code that Terrok should generate
+- `expected-output.py` - The Python code that Agedashi should generate
 - `test.sh` - Automated test script
 
 ## Prerequisites for Testing
@@ -30,23 +30,23 @@ Before testing, ensure you have:
    pip install diagrams
    ```
 
-## Building Terrok
+## Building Agedashi
 
 ```bash
-cd /home/user/Terrok
+cd /home/user/Agedashi
 cargo build --release
 ```
 
-The binary will be at `target/release/terrok`
+The binary will be at `target/release/agedashi`
 
 ## Running Tests
 
 ### Test 1: Using Sample DOT File
 
-Test Terrok with the pre-generated terraform graph output:
+Test Agedashi with the pre-generated terraform graph output:
 
 ```bash
-cat test/sample-graph.dot | ./target/release/terrok --output png --name test-output
+cat test/sample-graph.dot | ./target/release/agedashi --output png --name test-output
 ```
 
 Expected result: A `test-output.png` file should be created showing:
@@ -66,7 +66,7 @@ If you have Terraform installed:
 ```bash
 cd examples
 terraform init
-terraform graph | ../target/release/terrok --output svg --name simple-aws
+terraform graph | ../target/release/agedashi --output svg --name simple-aws
 ```
 
 Expected result: A `simple-aws.svg` file with a diagram of the infrastructure.
@@ -76,10 +76,10 @@ Expected result: A `simple-aws.svg` file with a diagram of the infrastructure.
 Test all supported output formats:
 
 ```bash
-cat test/sample-graph.dot | ./target/release/terrok --output svg --name test-svg
-cat test/sample-graph.dot | ./target/release/terrok --output png --name test-png
-cat test/sample-graph.dot | ./target/release/terrok --output pdf --name test-pdf
-cat test/sample-graph.dot | ./target/release/terrok --output jpg --name test-jpg
+cat test/sample-graph.dot | ./target/release/agedashi --output svg --name test-svg
+cat test/sample-graph.dot | ./target/release/agedashi --output png --name test-png
+cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name test-pdf
+cat test/sample-graph.dot | ./target/release/agedashi --output jpg --name test-jpg
 ```
 
 ### Test 4: Different Directions
@@ -88,10 +88,10 @@ Test layout directions:
 
 ```bash
 # Top to Bottom (default)
-cat test/sample-graph.dot | ./target/release/terrok --direction TB --name test-tb
+cat test/sample-graph.dot | ./target/release/agedashi --direction TB --name test-tb
 
 # Left to Right
-cat test/sample-graph.dot | ./target/release/terrok --direction LR --name test-lr
+cat test/sample-graph.dot | ./target/release/agedashi --direction LR --name test-lr
 ```
 
 ### Test 5: Verify Python Code Generation
@@ -99,7 +99,7 @@ cat test/sample-graph.dot | ./target/release/terrok --direction LR --name test-l
 To see the generated Python code, check the stderr output:
 
 ```bash
-cat test/sample-graph.dot | ./target/release/terrok 2>&1 | grep -A 50 "Generated Python code:"
+cat test/sample-graph.dot | ./target/release/agedashi 2>&1 | grep -A 50 "Generated Python code:"
 ```
 
 Compare this with `expected-output.py` to verify correctness.
@@ -119,7 +119,7 @@ This should create an `infrastructure.png` file.
 Run all tests automatically:
 
 ```bash
-cd /home/user/Terrok
+cd /home/user/Agedashi
 bash test/test.sh
 ```
 
@@ -193,10 +193,10 @@ For large infrastructures:
 
 ```bash
 # Time the execution
-time cat large-graph.dot | ./target/release/terrok
+time cat large-graph.dot | ./target/release/agedashi
 
 # Check memory usage
-/usr/bin/time -v cat large-graph.dot | ./target/release/terrok
+/usr/bin/time -v cat large-graph.dot | ./target/release/agedashi
 ```
 
 ## Integration Testing
@@ -205,7 +205,7 @@ Test with real Terraform projects:
 
 ```bash
 cd /path/to/your/terraform/project
-terraform graph | terrok --output svg --name production-infra
+terraform graph | agedashi --output svg --name production-infra
 ```
 
 Then manually verify the diagram matches your infrastructure.

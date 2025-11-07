@@ -1,6 +1,6 @@
-# Terrok Demonstration
+# Agedashi Demonstration
 
-This document demonstrates how Terrok transforms Terraform graph output into beautiful diagrams.
+This document demonstrates how Agedashi transforms Terraform graph output into beautiful diagrams.
 
 ## The Transformation Process
 
@@ -30,7 +30,7 @@ This is not very readable or visually appealing!
 
 ### Step 2: Parsing
 
-Terrok reads this DOT format and extracts:
+Agedashi reads this DOT format and extracts:
 
 **Resources Found:**
 - `aws_instance.web` → Type: EC2 compute instance
@@ -46,7 +46,7 @@ Terrok reads this DOT format and extracts:
 
 ### Step 3: Mapping
 
-Terrok maps Terraform resource types to AWS service icons:
+Agedashi maps Terraform resource types to AWS service icons:
 
 | Terraform Type | → | AWS Service | Icon |
 |----------------|---|-------------|------|
@@ -58,7 +58,7 @@ Terrok maps Terraform resource types to AWS service icons:
 
 ### Step 4: Code Generation
 
-Terrok generates Python code using the diagrams library:
+Agedashi generates Python code using the diagrams library:
 
 ```python
 from diagrams import Diagram
@@ -82,7 +82,7 @@ with Diagram("infrastructure", show=False, direction="TB", outformat="svg"):
 
 ### Step 5: Execution
 
-Terrok executes the Python code, which generates a beautiful diagram!
+Agedashi executes the Python code, which generates a beautiful diagram!
 
 ### Step 6: Output
 
@@ -135,7 +135,7 @@ resource "aws_s3_bucket" "static" {
 ### One Command
 
 ```bash
-terraform graph | terrok --output svg --name architecture
+terraform graph | agedashi --output svg --name architecture
 ```
 
 ### The Result
@@ -155,7 +155,7 @@ You get `architecture.svg` with:
 Generate diagrams for your documentation automatically:
 
 ```bash
-terraform graph | terrok --output png --name docs/architecture
+terraform graph | agedashi --output png --name docs/architecture
 ```
 
 Add to your README:
@@ -170,7 +170,7 @@ Add to your README:
 Include diagrams in pull requests:
 
 ```bash
-terraform graph | terrok --output svg --name pr-architecture
+terraform graph | agedashi --output svg --name pr-architecture
 ```
 
 Reviewers can see the infrastructure changes visually!
@@ -180,7 +180,7 @@ Reviewers can see the infrastructure changes visually!
 Share with stakeholders who don't read Terraform:
 
 ```bash
-terraform graph | terrok --output pdf --name presentation
+terraform graph | agedashi --output pdf --name presentation
 ```
 
 Include in presentations and reports.
@@ -191,10 +191,10 @@ Compare environments visually:
 
 ```bash
 cd environments/dev
-terraform graph | terrok --name dev-infra
+terraform graph | agedashi --name dev-infra
 
 cd ../prod
-terraform graph | terrok --name prod-infra
+terraform graph | agedashi --name prod-infra
 ```
 
 Spot differences easily!
@@ -207,14 +207,14 @@ Understand complex Terraform projects:
 git clone https://github.com/someone/terraform-project
 cd terraform-project
 terraform init
-terraform graph | terrok --output svg
+terraform graph | agedashi --output svg
 ```
 
 See the architecture at a glance!
 
 ## Comparison: Before vs After
 
-### Before Terrok
+### Before Agedashi
 
 **To visualize your infrastructure:**
 1. Read through Terraform files
@@ -223,10 +223,10 @@ See the architecture at a glance!
 4. Diagrams become outdated quickly
 5. Time-consuming and error-prone
 
-### After Terrok
+### After Agedashi
 
 **To visualize your infrastructure:**
-1. Run: `terraform graph | terrok`
+1. Run: `terraform graph | agedashi`
 2. Done! ✅
 
 **Benefits:**
@@ -245,7 +245,7 @@ See the architecture at a glance!
 #!/bin/bash
 for env in dev staging prod; do
   cd environments/$env
-  terraform graph | terrok --output png --name "../../docs/${env}-architecture"
+  terraform graph | agedashi --output png --name "../../docs/${env}-architecture"
 done
 ```
 
@@ -270,12 +270,12 @@ jobs:
         run: |
           brew install graphviz
           pip install diagrams
-          cargo install --git https://github.com/yourusername/terrok
+          cargo install --git https://github.com/yourusername/agedashi
 
       - name: Generate diagrams
         run: |
           terraform init
-          terraform graph | terrok --output svg --name architecture
+          terraform graph | agedashi --output svg --name architecture
 
       - name: Commit diagrams
         run: |
@@ -293,7 +293,7 @@ jobs:
 # .git/hooks/pre-commit
 
 echo "Generating infrastructure diagram..."
-terraform graph | terrok --output png --name architecture
+terraform graph | agedashi --output png --name architecture
 
 if [ -f "architecture.png" ]; then
   git add architecture.png
@@ -301,7 +301,7 @@ if [ -f "architecture.png" ]; then
 fi
 ```
 
-## Why Terrok?
+## Why Agedashi?
 
 ### The Problem
 
@@ -322,7 +322,7 @@ fi
 
 ## Performance
 
-Terrok is fast! Processing time by infrastructure size:
+Agedashi is fast! Processing time by infrastructure size:
 
 - Small (< 10 resources): < 1 second
 - Medium (10-50 resources): < 2 seconds
@@ -345,10 +345,10 @@ More providers coming soon: Azure, GCP, Kubernetes!
 
 ```bash
 # Install
-cargo install terrok
+cargo install agedashi
 
 # Use
-terraform graph | terrok --output svg
+terraform graph | agedashi --output svg
 
 # Enjoy your beautiful diagram! 🎉
 ```
@@ -363,4 +363,4 @@ terraform graph | terrok --output svg
 
 ---
 
-**Terrok** - Transform Terraform graphs into beautiful diagrams instantly!
+**Agedashi** - Transform Terraform graphs into beautiful diagrams instantly!

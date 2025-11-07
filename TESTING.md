@@ -1,4 +1,4 @@
-# Quick Testing Guide for Terrok
+# Quick Testing Guide for Agedashi
 
 ## Current Environment Status
 
@@ -22,7 +22,7 @@ pip install diagrams
 cargo build --release
 
 # Test with sample data
-cat test/sample-graph.dot | ./target/release/terrok --output png
+cat test/sample-graph.dot | ./target/release/agedashi --output png
 
 # You should see: test-output.png with a diagram
 ```
@@ -38,12 +38,12 @@ bash test/test.sh
 
 ```bash
 # In your Terraform project
-terraform graph | terrok --output svg --name my-infra
+terraform graph | agedashi --output svg --name my-infra
 ```
 
 ## What the Tool Does
 
-Here's a step-by-step example of what Terrok does:
+Here's a step-by-step example of what Agedashi does:
 
 ### Input (Terraform Graph Output)
 
@@ -85,7 +85,7 @@ A beautiful PNG/SVG/PDF diagram showing:
 ## Test Files Included
 
 - `test/sample-graph.dot` - Realistic Terraform graph output
-- `test/expected-output.py` - What Terrok should generate
+- `test/expected-output.py` - What Agedashi should generate
 - `test/test.sh` - Automated test suite
 - `test/README.md` - Detailed testing documentation
 
@@ -95,7 +95,7 @@ You can manually test the Python code generation:
 
 ```bash
 # Generate the code and see what it looks like
-cat test/sample-graph.dot | ./target/release/terrok 2>&1 | grep -A 100 "Generated Python code:"
+cat test/sample-graph.dot | ./target/release/agedashi 2>&1 | grep -A 100 "Generated Python code:"
 
 # Or test the expected output directly
 python3 test/expected-output.py
@@ -116,7 +116,7 @@ After successful testing, you should have:
 ## Common Issues
 
 ### Issue: "No input provided"
-**Solution**: Make sure to pipe input: `cat file | terrok`
+**Solution**: Make sure to pipe input: `cat file | agedashi`
 
 ### Issue: "Failed to execute Python code"
 **Solution**: Install diagrams: `pip install diagrams`
@@ -136,7 +136,7 @@ Test with large infrastructures:
 terraform graph > large.dot
 
 # Time the execution
-time cat large.dot | terrok --output svg
+time cat large.dot | agedashi --output svg
 
 # Should complete in < 1 second for most graphs
 ```
@@ -168,7 +168,7 @@ Once you verify the tool works:
 # .github/workflows/terraform-docs.yml
 - name: Generate Infrastructure Diagram
   run: |
-    terraform graph | terrok --output svg --name architecture
+    terraform graph | agedashi --output svg --name architecture
     # Upload artifact or commit to docs
 ```
 
@@ -177,7 +177,7 @@ Once you verify the tool works:
 ```bash
 #!/bin/bash
 # .git/hooks/pre-commit
-terraform graph | terrok --output png --name infrastructure
+terraform graph | agedashi --output png --name infrastructure
 git add infrastructure.png
 ```
 
@@ -187,7 +187,7 @@ git add infrastructure.png
 # Generate diagrams for all environments
 for env in dev staging prod; do
   cd environments/$env
-  terraform graph | terrok --output svg --name "$env-architecture"
+  terraform graph | agedashi --output svg --name "$env-architecture"
 done
 ```
 

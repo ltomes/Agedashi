@@ -1,15 +1,19 @@
-# Terrok
+# Agedashi
 
-A pure Rust CLI utility that transforms Terraform graph output into beautiful infrastructure diagrams.
+*Making tofu pretty!* 🍲
+
+A pure Rust CLI utility that transforms Terraform/OpenTofu graph output into beautiful infrastructure diagrams.
 
 ## Overview
 
-Terrok is a pure Rust command-line tool that reads Terraform graph output and automatically generates visual architecture diagrams. It focuses on AWS resources and creates professional-looking infrastructure diagrams with minimal effort - **no Python required**!
+Agedashi is a pure Rust command-line tool that reads Terraform/OpenTofu graph output and automatically generates visual architecture diagrams. It focuses on AWS resources and creates professional-looking infrastructure diagrams with minimal effort - **no Python required**!
+
+**Why "Agedashi"?** Like the Japanese dish where tofu is deep-fried to perfection, Agedashi takes your infrastructure-as-code (tofu/OpenTofu) and makes it visually appealing!
 
 ## Features
 
 - **Pure Rust**: No Python dependency, truly portable single binary
-- **Simple CLI Interface**: Just pipe your Terraform graph output directly to terrok
+- **Simple CLI Interface**: Just pipe your Terraform graph output directly to agedashi
 - **Multiple Output Formats**: Generate diagrams in SVG, PNG, PDF, or JPG
 - **AWS Resource Mapping**: Automatically maps 25+ AWS resource types to official AWS icons
 - **Official AWS Icons**: Uses AWS Architecture Icons from official AWS repository
@@ -37,20 +41,20 @@ That's it! No Python, no additional libraries needed.
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/terrok.git
-cd terrok
+git clone https://github.com/yourusername/agedashi.git
+cd agedashi
 cargo build --release
-sudo cp target/release/terrok /usr/local/bin/
+sudo cp target/release/agedashi /usr/local/bin/
 ```
 
 ## Usage
 
 ### Basic Usage
 
-The simplest way to use terrok is to pipe the output of `terraform graph` directly to it:
+The simplest way to use agedashi is to pipe the output of `terraform graph` directly to it:
 
 ```bash
-terraform graph | terrok
+terraform graph | agedashi
 ```
 
 This will generate a PNG file named `infrastructure.png` in your current directory.
@@ -58,7 +62,7 @@ This will generate a PNG file named `infrastructure.png` in your current directo
 ### Command-Line Options
 
 ```bash
-terrok [OPTIONS]
+agedashi [OPTIONS]
 ```
 
 #### Options:
@@ -73,28 +77,28 @@ terrok [OPTIONS]
 
 Generate an SVG diagram:
 ```bash
-terraform graph | terrok --output svg
+terraform graph | agedashi --output svg
 ```
 
 Create a diagram with a custom name:
 ```bash
-terraform graph | terrok --name my-infrastructure --output png
+terraform graph | agedashi --name my-infrastructure --output png
 ```
 
 Create a left-to-right diagram in PDF format:
 ```bash
-terraform graph | terrok --direction LR --output pdf --name aws-architecture
+terraform graph | agedashi --direction LR --output pdf --name aws-architecture
 ```
 
 Save the graph output first, then process it:
 ```bash
 terraform graph > graph.dot
-cat graph.dot | terrok --output svg --name production
+cat graph.dot | agedashi --output svg --name production
 ```
 
 ## Supported AWS Resources
 
-Terrok currently maps the following AWS resource types to diagram icons:
+Agedashi currently maps the following AWS resource types to diagram icons:
 
 ### Compute
 - `aws_instance` → EC2
@@ -150,7 +154,7 @@ Resources not explicitly mapped will default to EC2 icons.
 
 3. Generate and visualize your infrastructure:
    ```bash
-   terraform graph | terrok --output svg --name my-infra
+   terraform graph | agedashi --output svg --name my-infra
    ```
 
 4. Open the generated diagram:
@@ -167,7 +171,7 @@ Resources not explicitly mapped will default to EC2 icons.
 
 ## How It Works
 
-1. **Input**: Terrok reads Terraform graph output (in DOT format) from stdin
+1. **Input**: Agedashi reads Terraform graph output (in DOT format) from stdin
 2. **Parse**: Extracts resource nodes and their relationships using Rust regex
 3. **Map**: Maps Terraform resource types to official AWS Architecture Icons
 4. **Generate**: Creates enhanced GraphViz DOT format with icon URLs and styling
@@ -188,14 +192,14 @@ To test with examples:
 ```bash
 cd examples
 terraform init
-terraform graph | ../target/release/terrok --output png --name example
+terraform graph | ../target/release/agedashi --output png --name example
 ```
 
 ## Troubleshooting
 
 ### "GraphViz 'dot' command not found"
 
-Terrok requires GraphViz to render diagrams. Install it for your platform:
+Agedashi requires GraphViz to render diagrams. Install it for your platform:
 
 ```bash
 # macOS
@@ -217,10 +221,10 @@ This means your Terraform graph doesn't contain any AWS resources, or they're no
 
 ### Debug Mode
 
-Set the `TERROK_DEBUG` environment variable to save the generated DOT file:
+Set the `AGEDASHI_DEBUG` environment variable to save the generated DOT file:
 
 ```bash
-TERROK_DEBUG=1 terraform graph | terrok --output png
+AGEDASHI_DEBUG=1 terraform graph | agedashi --output png
 ```
 
 This will save `infrastructure.dot` so you can inspect the generated GraphViz code.

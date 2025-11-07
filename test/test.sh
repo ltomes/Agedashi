@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Terrok Test Suite
-# This script tests the Terrok CLI tool
+# Agedashi Test Suite
+# This script tests the Agedashi CLI tool
 
 set -e
 
@@ -17,7 +17,7 @@ TESTS_PASSED=0
 TESTS_FAILED=0
 
 echo "======================================"
-echo "  Terrok Test Suite"
+echo "  Agedashi Test Suite"
 echo "======================================"
 echo ""
 
@@ -37,7 +37,7 @@ print_result() {
 echo "Checking prerequisites..."
 
 # Check if binary exists
-if [ ! -f "target/release/terrok" ]; then
+if [ ! -f "target/release/agedashi" ]; then
     echo -e "${RED}Error: Binary not found. Please build first with 'cargo build --release'${NC}"
     exit 1
 fi
@@ -73,7 +73,7 @@ echo ""
 
 # Test 1: Help command
 echo "Test 1: Help command"
-if ./target/release/terrok --help > /dev/null 2>&1; then
+if ./target/release/agedashi --help > /dev/null 2>&1; then
     print_result 0 "Help command works"
 else
     print_result 1 "Help command failed"
@@ -81,7 +81,7 @@ fi
 
 # Test 2: Version command
 echo "Test 2: Version command"
-if ./target/release/terrok --version > /dev/null 2>&1; then
+if ./target/release/agedashi --version > /dev/null 2>&1; then
     print_result 0 "Version command works"
 else
     print_result 1 "Version command failed"
@@ -89,7 +89,7 @@ fi
 
 # Test 3: Read from stdin with sample DOT file
 echo "Test 3: Parse sample DOT file"
-if cat test/sample-graph.dot | ./target/release/terrok --output png --name test-basic 2>&1 | grep -q "Generated Python code:"; then
+if cat test/sample-graph.dot | ./target/release/agedashi --output png --name test-basic 2>&1 | grep -q "Generated Python code:"; then
     print_result 0 "Successfully parsed DOT file and generated Python code"
 else
     print_result 1 "Failed to parse DOT file"
@@ -97,7 +97,7 @@ fi
 
 # Test 4: Test with empty input
 echo "Test 4: Handle empty input"
-if echo "" | ./target/release/terrok 2>&1 | grep -q "No input provided"; then
+if echo "" | ./target/release/agedashi 2>&1 | grep -q "No input provided"; then
     print_result 0 "Correctly handles empty input"
 else
     print_result 1 "Failed to handle empty input"
@@ -106,7 +106,7 @@ fi
 # Test 5-8: Test different output formats (only if diagrams and graphviz are installed)
 if [ $DIAGRAMS_INSTALLED -eq 1 ] && [ $GRAPHVIZ_INSTALLED -eq 1 ]; then
     echo "Test 5: Generate PNG output"
-    if cat test/sample-graph.dot | ./target/release/terrok --output png --name test-png 2>/dev/null && [ -f "test-png.png" ]; then
+    if cat test/sample-graph.dot | ./target/release/agedashi --output png --name test-png 2>/dev/null && [ -f "test-png.png" ]; then
         print_result 0 "PNG generation successful"
         rm -f test-png.png
     else
@@ -114,7 +114,7 @@ if [ $DIAGRAMS_INSTALLED -eq 1 ] && [ $GRAPHVIZ_INSTALLED -eq 1 ]; then
     fi
 
     echo "Test 6: Generate SVG output"
-    if cat test/sample-graph.dot | ./target/release/terrok --output svg --name test-svg 2>/dev/null && [ -f "test-svg.svg" ]; then
+    if cat test/sample-graph.dot | ./target/release/agedashi --output svg --name test-svg 2>/dev/null && [ -f "test-svg.svg" ]; then
         print_result 0 "SVG generation successful"
         rm -f test-svg.svg
     else
@@ -122,7 +122,7 @@ if [ $DIAGRAMS_INSTALLED -eq 1 ] && [ $GRAPHVIZ_INSTALLED -eq 1 ]; then
     fi
 
     echo "Test 7: Generate PDF output"
-    if cat test/sample-graph.dot | ./target/release/terrok --output pdf --name test-pdf 2>/dev/null && [ -f "test-pdf.pdf" ]; then
+    if cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name test-pdf 2>/dev/null && [ -f "test-pdf.pdf" ]; then
         print_result 0 "PDF generation successful"
         rm -f test-pdf.pdf
     else
@@ -130,7 +130,7 @@ if [ $DIAGRAMS_INSTALLED -eq 1 ] && [ $GRAPHVIZ_INSTALLED -eq 1 ]; then
     fi
 
     echo "Test 8: Generate JPG output"
-    if cat test/sample-graph.dot | ./target/release/terrok --output jpg --name test-jpg 2>/dev/null && [ -f "test-jpg.jpg" ]; then
+    if cat test/sample-graph.dot | ./target/release/agedashi --output jpg --name test-jpg 2>/dev/null && [ -f "test-jpg.jpg" ]; then
         print_result 0 "JPG generation successful"
         rm -f test-jpg.jpg
     else
@@ -142,7 +142,7 @@ fi
 
 # Test 9: Test direction parameter
 echo "Test 9: Test direction parameter (TB)"
-if cat test/sample-graph.dot | ./target/release/terrok --direction TB --name test-tb 2>&1 | grep -q "direction=\"TB\""; then
+if cat test/sample-graph.dot | ./target/release/agedashi --direction TB --name test-tb 2>&1 | grep -q "direction=\"TB\""; then
     print_result 0 "TB direction parameter works"
 else
     print_result 1 "TB direction parameter failed"
@@ -150,7 +150,7 @@ fi
 
 # Test 10: Test direction parameter (LR)
 echo "Test 10: Test direction parameter (LR)"
-if cat test/sample-graph.dot | ./target/release/terrok --direction LR --name test-lr 2>&1 | grep -q "direction=\"LR\""; then
+if cat test/sample-graph.dot | ./target/release/agedashi --direction LR --name test-lr 2>&1 | grep -q "direction=\"LR\""; then
     print_result 0 "LR direction parameter works"
 else
     print_result 1 "LR direction parameter failed"
@@ -158,7 +158,7 @@ fi
 
 # Test 11: Verify AWS resource detection
 echo "Test 11: AWS resource detection"
-OUTPUT=$(cat test/sample-graph.dot | ./target/release/terrok 2>&1)
+OUTPUT=$(cat test/sample-graph.dot | ./target/release/agedashi 2>&1)
 if echo "$OUTPUT" | grep -q "aws.compute" && echo "$OUTPUT" | grep -q "aws.database"; then
     print_result 0 "AWS resources correctly detected and mapped"
 else
