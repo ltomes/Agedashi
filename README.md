@@ -1,18 +1,21 @@
 # Terrok
 
-A CLI utility that transforms Terraform graph output into beautiful infrastructure diagrams.
+A pure Rust CLI utility that transforms Terraform graph output into beautiful infrastructure diagrams.
 
 ## Overview
 
-Terrok is a Rust-based command-line tool that reads Terraform graph output and automatically generates visual architecture diagrams using the [diagrams](https://github.com/mingrammer/diagrams) Python library. It focuses on AWS resources and creates professional-looking infrastructure diagrams with minimal effort.
+Terrok is a pure Rust command-line tool that reads Terraform graph output and automatically generates visual architecture diagrams. It focuses on AWS resources and creates professional-looking infrastructure diagrams with minimal effort - **no Python required**!
 
 ## Features
 
+- **Pure Rust**: No Python dependency, truly portable single binary
 - **Simple CLI Interface**: Just pipe your Terraform graph output directly to terrok
 - **Multiple Output Formats**: Generate diagrams in SVG, PNG, PDF, or JPG
-- **AWS Resource Mapping**: Automatically maps 25+ AWS resource types to appropriate diagram icons
+- **AWS Resource Mapping**: Automatically maps 25+ AWS resource types to official AWS icons
+- **Official AWS Icons**: Uses AWS Architecture Icons from official AWS repository
 - **Customizable Layout**: Control diagram direction (top-to-bottom or left-to-right)
 - **No Configuration Required**: Works out of the box with sensible defaults
+- **Fast**: Native Rust performance
 
 ## Prerequisites
 
@@ -21,20 +24,13 @@ Terrok is a Rust-based command-line tool that reads Terraform graph output and a
 1. **Rust** (for building from source)
    - Install from [rustup.rs](https://rustup.rs/)
 
-2. **Python 3.9+**
-   - Most systems have Python pre-installed
-   - Check with: `python3 --version`
-
-3. **Graphviz**
+2. **GraphViz** (for rendering diagrams)
    - **macOS**: `brew install graphviz`
    - **Ubuntu/Debian**: `sudo apt-get install graphviz`
    - **Fedora**: `sudo dnf install graphviz`
    - **Windows**: Download from [graphviz.org](https://graphviz.org/download/)
 
-4. **Python diagrams library**
-   ```bash
-   pip install diagrams
-   ```
+That's it! No Python, no additional libraries needed.
 
 ## Installation
 
@@ -172,11 +168,13 @@ Resources not explicitly mapped will default to EC2 icons.
 ## How It Works
 
 1. **Input**: Terrok reads Terraform graph output (in DOT format) from stdin
-2. **Parse**: Extracts resource nodes and their relationships
-3. **Map**: Maps Terraform resource types to AWS diagram icons
-4. **Generate**: Creates Python code using the diagrams library
-5. **Execute**: Runs the Python code to generate the final diagram
-6. **Output**: Saves the diagram in your specified format
+2. **Parse**: Extracts resource nodes and their relationships using Rust regex
+3. **Map**: Maps Terraform resource types to official AWS Architecture Icons
+4. **Generate**: Creates enhanced GraphViz DOT format with icon URLs and styling
+5. **Render**: Uses GraphViz `dot` command to render the diagram
+6. **Output**: Saves the diagram in your specified format (PNG/SVG/PDF/JPG)
+
+All processing is done in pure Rust - no Python interpreter or external libraries needed!
 
 ## Examples Directory
 
@@ -195,22 +193,37 @@ terraform graph | ../target/release/terrok --output png --name example
 
 ## Troubleshooting
 
-### "Python execution failed"
+### "GraphViz 'dot' command not found"
 
-Make sure you have the diagrams library installed:
+Terrok requires GraphViz to render diagrams. Install it for your platform:
+
 ```bash
-pip install diagrams
+# macOS
+brew install graphviz
+
+# Ubuntu/Debian
+sudo apt-get install graphviz
+
+# Fedora
+sudo dnf install graphviz
+
+# Windows
+# Download from https://graphviz.org/download/
 ```
 
 ### "No AWS resources found"
 
 This means your Terraform graph doesn't contain any AWS resources, or they're not being parsed correctly. Ensure you're using AWS provider resources in your Terraform configuration.
 
-### Graphviz errors
+### Debug Mode
 
-Install Graphviz for your platform:
-- macOS: `brew install graphviz`
-- Ubuntu: `sudo apt-get install graphviz`
+Set the `TERROK_DEBUG` environment variable to save the generated DOT file:
+
+```bash
+TERROK_DEBUG=1 terraform graph | terrok --output png
+```
+
+This will save `infrastructure.dot` so you can inspect the generated GraphViz code.
 
 ### Build errors
 
