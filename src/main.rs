@@ -223,16 +223,19 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
         // Use icon if available, otherwise use colored box with emoji
         if icon_path.exists() && !icon_name.is_empty() {
             let icon_path_str = icon_path.to_string_lossy();
-            // GraphViz: image with label below, similar to diagrams library
+            // GraphViz: image with label below, proper sizing for clean icons
+            // width=1.5, height=1.5 creates a 1.5"x1.5" square (standard for AWS icons)
+            // imagepos=tc centers the image at top-center
+            // penwidth=0 removes any border
             dot.push_str(&format!(
-                "    {} [label=\"{}\", image=\"{}\", shape=none, labelloc=b, fontsize=10];\n",
+                "    {} [label=\"{}\", image=\"{}\", shape=none, labelloc=b, imagepos=tc, imagescale=true, fixedsize=true, width=1.5, height=1.5, fontsize=11, penwidth=0];\n",
                 node_id, resource.label, icon_path_str
             ));
         } else {
-            // Fallback to styled box with emoji and service name
-            let label = format!("{} {}\\n{}", fallback_emoji, service_name, resource.label);
+            // Fallback to styled box with service name (no emoji - cleaner)
+            let label = format!("{}\\n{}", service_name, resource.label);
             dot.push_str(&format!(
-                "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box];\n",
+                "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box, width=1.5, height=1.0];\n",
                 node_id, label, color
             ));
         }

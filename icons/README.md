@@ -4,12 +4,16 @@ Agedashi embeds AWS Architecture Icons directly in the binary for offline use.
 
 ## Getting AWS Icons
 
+### Option 1: Official AWS Architecture Icons (Recommended)
+
 1. Download official AWS Architecture Icons:
    - Visit: https://aws.amazon.com/architecture/icons/
-   - Download the "AWS Architecture Icons" package
+   - Download the "AWS Architecture Icons" package (ZIP file)
    - Extract the ZIP file
 
-2. Copy PNG files to this directory with these names:
+2. Find the PNG files for services you use (usually in folders like "Resource-Icons_*/Res_*")
+
+3. Copy PNG files to this directory with these names:
    ```
    ec2.png          - Amazon EC2
    lambda.png       - AWS Lambda
@@ -36,12 +40,37 @@ Agedashi embeds AWS Architecture Icons directly in the binary for offline use.
    kinesis.png      - Amazon Kinesis
    ```
 
-3. The icons should be 64x64 PNG files for best results
+### Option 2: Alternative Icon Sources
 
-4. Rebuild Agedashi:
-   ```bash
-   cargo build --release
-   ```
+You can also use icons from:
+- IcePanelIO: https://icon.icepanel.io/AWS/ (SVG format - convert to PNG)
+- Any other AWS icon set (ensure they're square PNG files)
+
+### Icon Format Requirements
+
+For best results, icons should be:
+- **Format**: PNG with transparent background
+- **Size**: 64x64 pixels or larger (square aspect ratio)
+- **Quality**: Clear, high-contrast icons work best
+- **Background**: Transparent PNG recommended
+
+### Converting SVG to PNG
+
+If you have SVG icons, convert them to PNG:
+```bash
+# Using ImageMagick
+convert icon.svg -resize 64x64 -background none icon.png
+
+# Using Inkscape
+inkscape icon.svg --export-type=png --export-width=64 --export-height=64 -o icon.png
+```
+
+### Building with Icons
+
+After adding PNG files to this directory:
+```bash
+cargo build --release
+```
 
 The icons will be embedded in the binary and work completely offline!
 
