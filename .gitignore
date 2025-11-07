@@ -1,0 +1,52 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Generated diagrams
+*.png
+*.svg
+*.pdf
+*.jpg
+*.dot
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv
+
+# Examples output
+examples/*.png
+examples/*.svg
+examples/*.pdf
+examples/*.jpg
+examples/.terraform/
+examples/*.tfstate
+examples/*.tfstate.backup
+examples/lambda.zip
