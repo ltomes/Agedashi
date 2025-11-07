@@ -114,12 +114,14 @@ fn map_terraform_to_diagrams_node(resource_type: &str) -> (&str, &str) {
         // Compute
         t if t.contains("aws_instance") => ("diagrams.aws.compute", "EC2"),
         t if t.contains("aws_lambda") => ("diagrams.aws.compute", "Lambda"),
+        t if t.contains("aws_ecs_service") => ("diagrams.aws.compute", "ECS"),
         t if t.contains("aws_ecs") => ("diagrams.aws.compute", "ECS"),
         t if t.contains("aws_eks") => ("diagrams.aws.compute", "EKS"),
         t if t.contains("aws_autoscaling") => ("diagrams.aws.compute", "AutoScaling"),
 
         // Database
         t if t.contains("aws_db_instance") => ("diagrams.aws.database", "RDS"),
+        t if t.contains("aws_db_subnet_group") => ("diagrams.aws.database", "RDS"),
         t if t.contains("aws_dynamodb") => ("diagrams.aws.database", "DynamoDB"),
         t if t.contains("aws_elasticache") => ("diagrams.aws.database", "ElastiCache"),
         t if t.contains("aws_redshift") => ("diagrams.aws.database", "Redshift"),
@@ -128,6 +130,7 @@ fn map_terraform_to_diagrams_node(resource_type: &str) -> (&str, &str) {
         t if t.contains("aws_elb") || t.contains("aws_lb") => ("diagrams.aws.network", "ELB"),
         t if t.contains("aws_vpc") => ("diagrams.aws.network", "VPC"),
         t if t.contains("aws_subnet") => ("diagrams.aws.network", "PublicSubnet"),
+        t if t.contains("aws_security_group") => ("diagrams.aws.network", "VPC"),
         t if t.contains("aws_route53") => ("diagrams.aws.network", "Route53"),
         t if t.contains("aws_cloudfront") => ("diagrams.aws.network", "CloudFront"),
         t if t.contains("aws_api_gateway") => ("diagrams.aws.network", "APIGateway"),
@@ -139,7 +142,6 @@ fn map_terraform_to_diagrams_node(resource_type: &str) -> (&str, &str) {
 
         // Security
         t if t.contains("aws_iam") => ("diagrams.aws.security", "IAM"),
-        t if t.contains("aws_security_group") => ("diagrams.aws.security", "SecurityGroup"),
         t if t.contains("aws_kms") => ("diagrams.aws.security", "KMS"),
 
         // Integration
