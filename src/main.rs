@@ -1,9 +1,11 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
-use std::io::{self, Read};
-use std::process::{Command, Stdio};
+use std::collections::HashMap;
+use std::fs;
+use std::io::{self, Read, Write as IoWrite};
+use std::process::Command;
+use tempfile::NamedTempFile;
 
 #[derive(Parser, Debug)]
 #[command(name = "terrok")]
@@ -108,121 +110,147 @@ fn parse_dot_graph(dot_content: &str) -> Result<TerraformGraph> {
     Ok(graph)
 }
 
-fn map_terraform_to_diagrams_node(resource_type: &str) -> (&str, &str) {
-    // Map terraform resource types to diagrams module and class
+fn get_aws_icon_url(resource_type: &str) -> &str {
+    // Using AWS Architecture Icons from GitHub
     match resource_type {
         // Compute
-        t if t.contains("aws_instance") => ("diagrams.aws.compute", "EC2"),
-        t if t.contains("aws_lambda") => ("diagrams.aws.compute", "Lambda"),
-        t if t.contains("aws_ecs_service") => ("diagrams.aws.compute", "ECS"),
-        t if t.contains("aws_ecs") => ("diagrams.aws.compute", "ECS"),
-        t if t.contains("aws_eks") => ("diagrams.aws.compute", "EKS"),
-        t if t.contains("aws_autoscaling") => ("diagrams.aws.compute", "AutoScaling"),
+        t if t.contains("aws_instance") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Compute/EC2.png",
+        t if t.contains("aws_lambda") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Compute/Lambda.png",
+        t if t.contains("aws_ecs") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Compute/ECS.png",
+        t if t.contains("aws_eks") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Compute/EKS.png",
+        t if t.contains("aws_autoscaling") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Compute/EC2AutoScaling.png",
 
         // Database
-        t if t.contains("aws_db_instance") => ("diagrams.aws.database", "RDS"),
-        t if t.contains("aws_db_subnet_group") => ("diagrams.aws.database", "RDS"),
-        t if t.contains("aws_dynamodb") => ("diagrams.aws.database", "DynamoDB"),
-        t if t.contains("aws_elasticache") => ("diagrams.aws.database", "ElastiCache"),
-        t if t.contains("aws_redshift") => ("diagrams.aws.database", "Redshift"),
+        t if t.contains("aws_db_instance") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Database/RDS.png",
+        t if t.contains("aws_db_subnet_group") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Database/RDS.png",
+        t if t.contains("aws_dynamodb") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Database/DynamoDB.png",
+        t if t.contains("aws_elasticache") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Database/ElastiCache.png",
+        t if t.contains("aws_redshift") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Database/Redshift.png",
 
         // Network
-        t if t.contains("aws_elb") || t.contains("aws_lb") => ("diagrams.aws.network", "ELB"),
-        t if t.contains("aws_vpc") => ("diagrams.aws.network", "VPC"),
-        t if t.contains("aws_subnet") => ("diagrams.aws.network", "PublicSubnet"),
-        t if t.contains("aws_security_group") => ("diagrams.aws.network", "VPC"),
-        t if t.contains("aws_route53") => ("diagrams.aws.network", "Route53"),
-        t if t.contains("aws_cloudfront") => ("diagrams.aws.network", "CloudFront"),
-        t if t.contains("aws_api_gateway") => ("diagrams.aws.network", "APIGateway"),
+        t if t.contains("aws_elb") || t.contains("aws_lb") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/NetworkingContentDelivery/ElasticLoadBalancing.png",
+        t if t.contains("aws_vpc") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/NetworkingContentDelivery/VPC.png",
+        t if t.contains("aws_subnet") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/NetworkingContentDelivery/VPC.png",
+        t if t.contains("aws_security_group") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/SecurityIdentityCompliance/IAM.png",
+        t if t.contains("aws_route53") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/NetworkingContentDelivery/Route53.png",
+        t if t.contains("aws_cloudfront") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/NetworkingContentDelivery/CloudFront.png",
+        t if t.contains("aws_api_gateway") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/ApplicationIntegration/APIGateway.png",
 
         // Storage
-        t if t.contains("aws_s3") => ("diagrams.aws.storage", "S3"),
-        t if t.contains("aws_ebs") => ("diagrams.aws.storage", "EBS"),
-        t if t.contains("aws_efs") => ("diagrams.aws.storage", "EFS"),
+        t if t.contains("aws_s3") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Storage/SimpleStorageService.png",
+        t if t.contains("aws_ebs") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Storage/EBS.png",
+        t if t.contains("aws_efs") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Storage/EFS.png",
 
         // Security
-        t if t.contains("aws_iam") => ("diagrams.aws.security", "IAM"),
-        t if t.contains("aws_kms") => ("diagrams.aws.security", "KMS"),
+        t if t.contains("aws_iam") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/SecurityIdentityCompliance/IAM.png",
+        t if t.contains("aws_kms") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/SecurityIdentityCompliance/KMS.png",
 
         // Integration
-        t if t.contains("aws_sns") => ("diagrams.aws.integration", "SNS"),
-        t if t.contains("aws_sqs") => ("diagrams.aws.integration", "SQS"),
+        t if t.contains("aws_sns") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/ApplicationIntegration/SimpleNotificationService.png",
+        t if t.contains("aws_sqs") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/ApplicationIntegration/SQS.png",
 
         // Analytics
-        t if t.contains("aws_kinesis") => ("diagrams.aws.analytics", "Kinesis"),
+        t if t.contains("aws_kinesis") => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Analytics/Kinesis.png",
 
-        // Default to a generic compute node
-        _ => ("diagrams.aws.compute", "EC2"),
+        // Default
+        _ => "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v18.0/dist/Compute/EC2.png",
     }
 }
 
-fn generate_python_code(graph: &TerraformGraph, name: &str, direction: &str, output_format: &str) -> String {
-    let mut imports: HashSet<String> = HashSet::new();
-    let mut node_definitions: Vec<String> = Vec::new();
-    let mut node_var_map: HashMap<String, String> = HashMap::new();
+fn get_service_color(resource_type: &str) -> &str {
+    match resource_type {
+        t if t.contains("aws_instance") || t.contains("aws_lambda") || t.contains("aws_ecs") || t.contains("aws_eks") => "#FF9900",
+        t if t.contains("aws_db_") || t.contains("aws_dynamodb") || t.contains("aws_elasticache") || t.contains("aws_redshift") => "#3B48CC",
+        t if t.contains("aws_vpc") || t.contains("aws_subnet") || t.contains("aws_lb") || t.contains("aws_elb") || t.contains("aws_route53") || t.contains("aws_cloudfront") || t.contains("aws_api_gateway") => "#8C4FFF",
+        t if t.contains("aws_s3") || t.contains("aws_ebs") || t.contains("aws_efs") => "#7AA116",
+        t if t.contains("aws_iam") || t.contains("aws_kms") || t.contains("aws_security_group") => "#DD344C",
+        t if t.contains("aws_sns") || t.contains("aws_sqs") => "#FF4F8B",
+        t if t.contains("aws_kinesis") => "#8C4FFF",
+        _ => "#232F3E",
+    }
+}
+
+fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str) -> String {
+    let mut dot = String::new();
+
+    // Graph header
+    dot.push_str(&format!("digraph \"{}\" {{\n", name));
+    dot.push_str("    node [shape=box, style=filled, fontname=\"Arial\", fontsize=12];\n");
+    dot.push_str("    edge [color=\"#666666\", penwidth=2];\n");
+    dot.push_str(&format!("    rankdir={};\n", direction));
+    dot.push_str("    bgcolor=\"#FFFFFF\";\n");
+    dot.push_str("    splines=ortho;\n");
+    dot.push_str("    nodesep=1.0;\n");
+    dot.push_str("    ranksep=1.0;\n\n");
 
     // Filter AWS resources only
     let aws_resources: Vec<_> = graph.resources.iter()
         .filter(|r| r.resource_type.contains("aws_"))
         .collect();
 
-    // Generate imports and node definitions
-    for (idx, resource) in aws_resources.iter().enumerate() {
-        let (module, class) = map_terraform_to_diagrams_node(&resource.resource_type);
-        imports.insert(format!("from {} import {}", module, class));
+    let mut node_map: HashMap<String, String> = HashMap::new();
 
-        let var_name = format!("node_{}", idx);
-        let label = resource.label.replace("\"", "\\\"");
-        node_definitions.push(format!("    {} = {}(\"{}\")", var_name, class, label));
-        node_var_map.insert(resource.name.clone(), var_name);
+    // Generate nodes
+    for (idx, resource) in aws_resources.iter().enumerate() {
+        let node_id = format!("node_{}", idx);
+        let icon_url = get_aws_icon_url(&resource.resource_type);
+        let color = get_service_color(&resource.resource_type);
+
+        // Create node with image
+        dot.push_str(&format!(
+            "    {} [label=\"{}\", image=\"{}\", fillcolor=\"{}\", imagescale=true, fixedsize=true, width=2, height=2];\n",
+            node_id, resource.label, icon_url, color
+        ));
+
+        node_map.insert(resource.name.clone(), node_id);
     }
+
+    dot.push_str("\n");
 
     // Generate edges
-    let mut edge_definitions: Vec<String> = Vec::new();
     for (from, to) in &graph.edges {
-        if let (Some(from_var), Some(to_var)) = (node_var_map.get(from), node_var_map.get(to)) {
-            edge_definitions.push(format!("    {} >> {}", from_var, to_var));
+        if let (Some(from_node), Some(to_node)) = (node_map.get(from), node_map.get(to)) {
+            dot.push_str(&format!("    {} -> {};\n", from_node, to_node));
         }
     }
 
-    let mut code = String::new();
-    code.push_str("from diagrams import Diagram\n");
-    for import in imports {
-        code.push_str(&format!("{}\n", import));
-    }
-    code.push_str("\n");
-    code.push_str(&format!("with Diagram(\"{}\", show=False, direction=\"{}\", outformat=\"{}\"):\n", name, direction, output_format));
-
-    for def in node_definitions {
-        code.push_str(&format!("{}\n", def));
-    }
-
-    code.push_str("\n");
-    for edge_def in edge_definitions {
-        code.push_str(&format!("{}\n", edge_def));
-    }
-
-    code
+    dot.push_str("}\n");
+    dot
 }
 
-fn execute_python_code(python_code: &str) -> Result<()> {
-    let mut child = Command::new("python3")
-        .arg("-c")
-        .arg(python_code)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .context("Failed to execute Python code. Make sure Python 3 and the 'diagrams' package are installed.")?;
+fn execute_dot_command(dot_content: &str, output_format: &str, output_file: &str) -> Result<()> {
+    // Check if dot command exists
+    let dot_check = Command::new("dot")
+        .arg("-V")
+        .output();
 
-    let status = child.wait().context("Failed to wait for Python process")?;
+    if dot_check.is_err() {
+        anyhow::bail!(
+            "GraphViz 'dot' command not found. Please install GraphViz:\n\
+             - macOS: brew install graphviz\n\
+             - Ubuntu/Debian: sudo apt-get install graphviz\n\
+             - Fedora: sudo dnf install graphviz\n\
+             - Windows: Download from https://graphviz.org/download/"
+        );
+    }
 
-    if !status.success() {
-        let mut stderr = String::new();
-        if let Some(mut stderr_pipe) = child.stderr {
-            stderr_pipe.read_to_string(&mut stderr)?;
-        }
-        anyhow::bail!("Python execution failed: {}", stderr);
+    // Create temporary file for DOT content
+    let mut temp_file = NamedTempFile::new()?;
+    temp_file.write_all(dot_content.as_bytes())?;
+    let temp_path = temp_file.path();
+
+    // Execute dot command
+    let output = Command::new("dot")
+        .arg(format!("-T{}", output_format))
+        .arg(temp_path)
+        .arg("-o")
+        .arg(output_file)
+        .output()
+        .context("Failed to execute dot command")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("GraphViz dot command failed: {}", stderr);
     }
 
     Ok(())
@@ -241,7 +269,7 @@ fn main() -> Result<()> {
         anyhow::bail!("No input provided. Please pipe terraform graph output to terrok.");
     }
 
-    // Parse the DOT graph
+    // Parse the Terraform graph
     let graph = parse_dot_graph(&input).context("Failed to parse Terraform graph")?;
 
     if graph.resources.is_empty() {
@@ -250,18 +278,32 @@ fn main() -> Result<()> {
 
     eprintln!("Found {} resources and {} edges", graph.resources.len(), graph.edges.len());
 
-    // Generate Python code
-    let python_code = generate_python_code(&graph, &cli.name, &cli.direction, &cli.output);
+    // Filter for AWS resources
+    let aws_count = graph.resources.iter().filter(|r| r.resource_type.contains("aws_")).count();
 
-    // For debugging: print the generated Python code
-    eprintln!("Generated Python code:");
-    eprintln!("{}", python_code);
-    eprintln!("\nExecuting...");
+    if aws_count == 0 {
+        eprintln!("Warning: No AWS resources found to visualize.");
+        return Ok(());
+    }
 
-    // Execute Python code
-    execute_python_code(&python_code)?;
+    eprintln!("Visualizing {} AWS resources...", aws_count);
 
-    println!("Diagram generated successfully: {}.{}", cli.name, cli.output);
+    // Generate DOT graph
+    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction);
+
+    // For debugging: save DOT file
+    if std::env::var("TERROK_DEBUG").is_ok() {
+        fs::write(format!("{}.dot", cli.name), &dot_content)?;
+        eprintln!("DOT file saved to: {}.dot", cli.name);
+    }
+
+    // Output file path
+    let output_file = format!("{}.{}", cli.name, cli.output);
+
+    // Execute dot command
+    execute_dot_command(&dot_content, &cli.output, &output_file)?;
+
+    println!("Diagram generated successfully: {}", output_file);
 
     Ok(())
 }
