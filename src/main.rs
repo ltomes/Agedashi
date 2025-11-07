@@ -73,14 +73,20 @@ fn parse_dot_graph(dot_content: &str) -> Result<TerraformGraph> {
         if line.contains("[label =") {
             if let Some(caps) = node_re.captures(line) {
                 let full_name = caps.get(1).map_or("", |m| m.as_str()).to_string();
-                let node_type = caps.get(2).map_or("", |m| m.as_str()).to_string();
+
+                // Extract resource type from the node name (e.g., "aws_instance" from "aws_instance.web")
+                let resource_type = if let Some(dot_pos) = full_name.find('.') {
+                    full_name[..dot_pos].to_string()
+                } else {
+                    full_name.clone()
+                };
 
                 let label = label_re
                     .captures(line)
                     .and_then(|c| c.get(1))
                     .map_or(full_name.clone(), |m| m.as_str().to_string());
 
-                node_map.insert(full_name.clone(), (node_type, label));
+                node_map.insert(full_name.clone(), (resource_type, label));
             }
         }
 
