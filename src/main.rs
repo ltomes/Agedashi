@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use clap::Parser;
 use regex::Regex;
 use std::collections::HashMap;
@@ -495,7 +496,7 @@ fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
     }
 }
 
-fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path, temp_dir: &Path, icon_size: u32) -> Result<String> {
+fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path, temp_dir: &Path, icon_size: u32, output_format: &str) -> Result<String> {
     let mut dot = String::new();
 
     // Graph header with modern styling
@@ -525,18 +526,35 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
 
         // Use icon if available, otherwise use colored box
         if svg_path.exists() && !icon_name.is_empty() {
-            // Convert SVG to PNG for all output formats (GraphViz doesn't embed SVG in SVG output)
+            // Convert SVG to PNG for all output formats
             let png_path = temp_dir.join(format!("{}.png", icon_name));
 
             match convert_svg_to_png(&svg_path, &png_path, icon_size) {
                 Ok(_) => {
-                    let icon_path_str = png_path.to_string_lossy();
+                    // For SVG output, embed PNG as base64 data URI
+                    // For other formats, use file path (GraphViz embeds them during render)
+                    let img_src = if output_format == "svg" {
+                        // Read PNG and base64 encode it
+                        match fs::read(&png_path) {
+                            Ok(png_data) => {
+                                let base64_data = BASE64.encode(&png_data);
+                                format!("data:image/png;base64,{}", base64_data)
+                            }
+                            Err(_) => {
+                                // If read fails, fall back to file path
+                                png_path.to_string_lossy().to_string()
+                            }
+                        }
+                    } else {
+                        png_path.to_string_lossy().to_string()
+                    };
+
                     // GraphViz: HTML-like label with image in table cell and grey text below
                     // SCALE="TRUE" ensures proportional sizing, WIDTH/HEIGHT set consistent size
                     // Text color matches the connecting lines (#2D3436)
                     let html_label = format!(
                         "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD><IMG SCALE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\" SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"#2D3436\">{}</FONT></TD></TR></TABLE>>",
-                        icon_size, icon_size, icon_path_str, resource.label
+                        icon_size, icon_size, img_src, resource.label
                     );
                     dot.push_str(&format!(
                         "    {} [label={}, shape=plaintext, fontsize=10];\n",
@@ -671,25 +689,14 @@ fn main() -> Result<()> {
         eprintln!("Using fallback styled boxes (icons unavailable)");
     }
 
-    // For SVG output, use a persistent icons directory so the SVG can reference the PNGs
-    // For other formats (PNG/PDF), use temp directory since images are embedded
-    let icons_dir_name = format!("{}_icons", cli.name);
-    let (icon_dir_path, _temp_dir_guard) = if cli.output == "svg" {
-        // Create persistent directory for SVG output
-        fs::create_dir_all(&icons_dir_name)
-            .context(format!("Failed to create icons directory: {}", icons_dir_name))?;
-        (PathBuf::from(&icons_dir_name), None)
-    } else {
-        // Use temporary directory for PNG/PDF/JPG output
-        let temp = tempfile::tempdir()
-            .context("Failed to create temporary directory for icon conversion")?;
-        let path = temp.path().to_path_buf();
-        (path, Some(temp))
-    };
+    // Create temp directory for PNG conversions
+    let temp_dir = tempfile::tempdir()
+        .context("Failed to create temporary directory for icon conversion")?;
 
     // Generate DOT graph with lazy icon conversion
-    // Icons are converted from SVG to PNG at 128x128 for consistent sizing across all formats
-    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, &icon_dir_path, 128)?;
+    // Icons are converted from SVG to PNG at 128x128
+    // For SVG output, PNGs are embedded as base64 data URIs
+    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, temp_dir.path(), 128, &cli.output)?;
 
     // Output file path
     let output_file = format!("{}.{}", cli.name, cli.output);
@@ -706,9 +713,6 @@ fn main() -> Result<()> {
     execute_dot_command(&dot_content, &cli.output, &output_file)?;
 
     println!("Diagram generated successfully: {}", output_file);
-    if cli.output == "svg" {
-        eprintln!("Note: Icon files are in {}/", icons_dir_name);
-    }
 
     Ok(())
 }
