@@ -533,11 +533,11 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
                 Ok(_) => {
                     let icon_path_str = png_path.to_string_lossy();
                     // GraphViz: HTML-like label with image in table cell and grey text below
-                    // Note: GraphViz HTML doesn't support WIDTH/HEIGHT/SCALE on IMG tags
+                    // Set FIXEDSIZE on TD to constrain image proportionally for PDF output
                     // Text color matches the connecting lines (#2D3436)
                     let html_label = format!(
-                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"#2D3436\">{}</FONT></TD></TR></TABLE>>",
-                        icon_path_str, resource.label
+                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"#2D3436\">{}</FONT></TD></TR></TABLE>>",
+                        icon_size, icon_size, icon_path_str, resource.label
                     );
                     dot.push_str(&format!(
                         "    {} [label={}, shape=plaintext, fontsize=10];\n",
