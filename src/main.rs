@@ -496,7 +496,7 @@ fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
     }
 }
 
-fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path, temp_dir: &Path, icon_size: u32, output_format: &str) -> Result<String> {
+fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path, temp_dir: &Path, icon_size: u32) -> Result<String> {
     let mut dot = String::new();
 
     // Graph header with modern styling
@@ -531,30 +531,13 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
 
             match convert_svg_to_png(&svg_path, &png_path, icon_size) {
                 Ok(_) => {
-                    // For SVG output, embed PNG as base64 data URI
-                    // For other formats, use file path (GraphViz embeds them during render)
-                    let img_src = if output_format == "svg" {
-                        // Read PNG and base64 encode it
-                        match fs::read(&png_path) {
-                            Ok(png_data) => {
-                                let base64_data = BASE64.encode(&png_data);
-                                format!("data:image/png;base64,{}", base64_data)
-                            }
-                            Err(_) => {
-                                // If read fails, fall back to file path
-                                png_path.to_string_lossy().to_string()
-                            }
-                        }
-                    } else {
-                        png_path.to_string_lossy().to_string()
-                    };
-
+                    let icon_path_str = png_path.to_string_lossy();
                     // GraphViz: HTML-like label with image in table cell and grey text below
-                    // SCALE="TRUE" ensures proportional sizing, WIDTH/HEIGHT set consistent size
+                    // Note: GraphViz HTML doesn't support WIDTH/HEIGHT/SCALE on IMG tags
                     // Text color matches the connecting lines (#2D3436)
                     let html_label = format!(
-                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD><IMG SCALE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\" SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"#2D3436\">{}</FONT></TD></TR></TABLE>>",
-                        icon_size, icon_size, img_src, resource.label
+                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"#2D3436\">{}</FONT></TD></TR></TABLE>>",
+                        icon_path_str, resource.label
                     );
                     dot.push_str(&format!(
                         "    {} [label={}, shape=plaintext, fontsize=10];\n",
@@ -695,8 +678,8 @@ fn main() -> Result<()> {
 
     // Generate DOT graph with lazy icon conversion
     // Icons are converted from SVG to PNG at 128x128
-    // For SVG output, PNGs are embedded as base64 data URIs
-    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, temp_dir.path(), 128, &cli.output)?;
+    // For SVG output, the generated SVG is post-processed to embed PNGs as base64
+    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, temp_dir.path(), 128)?;
 
     // Output file path
     let output_file = format!("{}.{}", cli.name, cli.output);
@@ -712,7 +695,42 @@ fn main() -> Result<()> {
     // Execute dot command
     execute_dot_command(&dot_content, &cli.output, &output_file)?;
 
+    // For SVG output, post-process to embed images as base64 data URIs
+    if cli.output == "svg" {
+        embed_images_in_svg(&output_file)?;
+    }
+
     println!("Diagram generated successfully: {}", output_file);
+
+    Ok(())
+}
+
+// Post-process SVG to embed PNG images as base64 data URIs
+fn embed_images_in_svg(svg_file: &str) -> Result<()> {
+    // Read the SVG file
+    let svg_content = fs::read_to_string(svg_file)
+        .context(format!("Failed to read SVG file: {}", svg_file))?;
+
+    // Replace file paths with base64 data URIs
+    let re = Regex::new(r#"xlink:href="([^"]+\.png)""#)?;
+    let mut modified_svg = svg_content.clone();
+
+    for cap in re.captures_iter(&svg_content) {
+        let file_path = &cap[1];
+        // Read the PNG file and base64 encode it
+        if let Ok(png_data) = fs::read(file_path) {
+            let base64_data = BASE64.encode(&png_data);
+            let data_uri = format!("data:image/png;base64,{}", base64_data);
+            modified_svg = modified_svg.replace(
+                &format!("xlink:href=\"{}\"", file_path),
+                &format!("xlink:href=\"{}\"", data_uri)
+            );
+        }
+    }
+
+    // Write the modified SVG back
+    fs::write(svg_file, modified_svg)
+        .context(format!("Failed to write modified SVG: {}", svg_file))?;
 
     Ok(())
 }
