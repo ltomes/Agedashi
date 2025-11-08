@@ -671,13 +671,25 @@ fn main() -> Result<()> {
         eprintln!("Using fallback styled boxes (icons unavailable)");
     }
 
-    // Create temp directory for PNG conversions (not needed for SVG output)
-    let temp_dir = tempfile::tempdir()
-        .context("Failed to create temporary directory for icon conversion")?;
+    // For SVG output, use a persistent icons directory so the SVG can reference the PNGs
+    // For other formats (PNG/PDF), use temp directory since images are embedded
+    let icons_dir_name = format!("{}_icons", cli.name);
+    let (icon_dir_path, _temp_dir_guard) = if cli.output == "svg" {
+        // Create persistent directory for SVG output
+        fs::create_dir_all(&icons_dir_name)
+            .context(format!("Failed to create icons directory: {}", icons_dir_name))?;
+        (PathBuf::from(&icons_dir_name), None)
+    } else {
+        // Use temporary directory for PNG/PDF/JPG output
+        let temp = tempfile::tempdir()
+            .context("Failed to create temporary directory for icon conversion")?;
+        let path = temp.path().to_path_buf();
+        (path, Some(temp))
+    };
 
     // Generate DOT graph with lazy icon conversion
     // Icons are converted from SVG to PNG at 128x128 for consistent sizing across all formats
-    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, temp_dir.path(), 128)?;
+    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, &icon_dir_path, 128)?;
 
     // Output file path
     let output_file = format!("{}.{}", cli.name, cli.output);
@@ -694,6 +706,9 @@ fn main() -> Result<()> {
     execute_dot_command(&dot_content, &cli.output, &output_file)?;
 
     println!("Diagram generated successfully: {}", output_file);
+    if cli.output == "svg" {
+        eprintln!("Note: Icon files are in {}/", icons_dir_name);
+    }
 
     Ok(())
 }
