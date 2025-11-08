@@ -531,10 +531,10 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
             match convert_svg_to_png(&svg_path, &png_path, icon_size) {
                 Ok(_) => {
                     let icon_path_str = png_path.to_string_lossy();
-                    // GraphViz: HTML-like label with image in table cell and text below with border
-                    // Text cell has a 2px border in the same grey as the connecting lines (#2D3436)
+                    // GraphViz: HTML-like label with image in table cell and grey text below
+                    // Text color matches the connecting lines (#2D3436)
                     let html_label = format!(
-                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD><IMG SRC=\"{}\"/></TD></TR><TR><TD BORDER=\"2\" COLOR=\"#2D3436\">{}</TD></TR></TABLE>>",
+                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"#2D3436\">{}</FONT></TD></TR></TABLE>>",
                         icon_path_str, resource.label
                     );
                     dot.push_str(&format!(
