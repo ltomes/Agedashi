@@ -59,10 +59,10 @@ sudo cp target/release/agedashi /usr/local/bin/
 
 ### Basic Usage
 
-The simplest way to use agedashi is to pipe the output of `terraform graph` directly to it:
+The simplest way to use agedashi is to pipe the output of `tofu graph` directly to it:
 
 ```bash
-terraform graph | agedashi
+tofu graph | agedashi
 ```
 
 This will generate a PNG file named `infrastructure.png` in your current directory.
@@ -85,22 +85,22 @@ agedashi [OPTIONS]
 
 Generate an SVG diagram:
 ```bash
-terraform graph | agedashi --output svg
+tofu graph | agedashi --output svg
 ```
 
 Create a diagram with a custom name:
 ```bash
-terraform graph | agedashi --name my-infrastructure --output png
+tofu graph | agedashi --name my-infrastructure --output png
 ```
 
 Create a left-to-right diagram in PDF format:
 ```bash
-terraform graph | agedashi --direction LR --output pdf --name aws-architecture
+tofu graph | agedashi --direction LR --output pdf --name aws-architecture
 ```
 
 Save the graph output first, then process it:
 ```bash
-terraform graph > graph.dot
+tofu graph > graph.dot
 cat graph.dot | agedashi --output svg --name production
 ```
 
@@ -150,19 +150,19 @@ Resources not explicitly mapped will default to EC2 icons.
 
 ## Example Workflow
 
-1. Navigate to your Terraform project:
+1. Navigate to your OpenTofu project:
    ```bash
-   cd /path/to/terraform/project
+   cd /path/to/opentofu/project
    ```
 
-2. Initialize Terraform (if not already done):
+2. Initialize OpenTofu (if not already done):
    ```bash
-   terraform init
+   tofu init
    ```
 
 3. Generate and visualize your infrastructure:
    ```bash
-   terraform graph | agedashi --output svg --name my-infra
+   tofu graph | agedashi --output svg --name my-infra
    ```
 
 4. Open the generated diagram:
@@ -199,8 +199,8 @@ To test with examples:
 
 ```bash
 cd examples
-terraform init
-terraform graph | ../target/release/agedashi --output png --name example
+tofu init
+tofu graph | ../target/release/agedashi --output png --name example
 ```
 
 ## Troubleshooting
@@ -232,7 +232,7 @@ This means your Terraform graph doesn't contain any AWS resources, or they're no
 Set the `AGEDASHI_DEBUG` environment variable to save the generated DOT file:
 
 ```bash
-AGEDASHI_DEBUG=1 terraform graph | agedashi --output png
+AGEDASHI_DEBUG=1 tofu graph | agedashi --output png
 ```
 
 This will save `infrastructure.dot` so you can inspect the generated GraphViz code.
