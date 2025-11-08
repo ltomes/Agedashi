@@ -61,6 +61,16 @@ jobs:
     - name: List generated files
       run: ls -lh samples/
 
+    - name: Add diagrams to workflow summary
+      run: |
+        echo "## Generated Diagrams" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### PNG Output" >> $GITHUB_STEP_SUMMARY
+        echo "![Sample Infrastructure Diagram](samples/sample-infrastructure.png)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### SVG Output" >> $GITHUB_STEP_SUMMARY
+        echo "![Sample Infrastructure Diagram](samples/sample-infrastructure.svg)" >> $GITHUB_STEP_SUMMARY
+
     - name: Commit and push diagrams
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"

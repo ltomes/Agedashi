@@ -10,6 +10,14 @@ Agedashi is a pure Rust command-line tool that reads Terraform/OpenTofu graph ou
 
 **Why "Agedashi"?** Like the Japanese dish where tofu is deep-fried to perfection, Agedashi takes your infrastructure-as-code (tofu/OpenTofu) and makes it visually appealing!
 
+## Sample Output
+
+Here's an example of what Agedashi generates from a Terraform graph:
+
+![Sample Infrastructure Diagram](samples/sample-infrastructure.png)
+
+The diagram shows AWS resources with official AWS Architecture Icons, clean layouts, and automatic relationship mapping. Icons have rounded corners for a modern appearance, and resource names appear below each icon.
+
 ## Features
 
 - **Pure Rust**: No Python dependency, truly portable single binary
@@ -262,8 +270,10 @@ MIT License - see LICENSE file for details
 ## Credits
 
 - Built with [Rust](https://www.rust-lang.org/)
-- Uses [diagrams](https://github.com/mingrammer/diagrams) for visualization
+- Visualization powered by [GraphViz](https://graphviz.org/)
+- Official [AWS Architecture Icons](https://aws.amazon.com/architecture/icons/)
 - CLI parsing with [clap](https://github.com/clap-rs/clap)
+- SVG rendering with [resvg](https://github.com/RazrFalcon/resvg)
 
 ## Author
 
