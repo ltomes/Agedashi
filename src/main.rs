@@ -94,56 +94,10 @@ fn extract_embedded_icons(cache_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-fn get_icon_zip_path(name: &str) -> Option<&'static str> {
-    // Map icon names to paths within the official AWS Architecture Icons ZIP
-    // These paths are from the official AWS Architecture Icons package
-    // See: https://aws.amazon.com/architecture/icons/
-    match name {
-        // Compute - 64x64 PNG files from the official package
-        "ec2" => Some("Architecture-Service-Icons_01312023/Arch_Compute/64/Arch_Amazon-EC2_64.png"),
-        "lambda" => Some("Architecture-Service-Icons_01312023/Arch_Compute/64/Arch_AWS-Lambda_64.png"),
-        "ecs" => Some("Architecture-Service-Icons_01312023/Arch_Containers/64/Arch_Amazon-Elastic-Container-Service_64.png"),
-        "eks" => Some("Architecture-Service-Icons_01312023/Arch_Containers/64/Arch_Amazon-Elastic-Kubernetes-Service_64.png"),
-        "autoscaling" => Some("Architecture-Service-Icons_01312023/Arch_Compute/64/Arch_AWS-Auto-Scaling_64.png"),
-
-        // Database
-        "rds" => Some("Architecture-Service-Icons_01312023/Arch_Database/64/Arch_Amazon-RDS_64.png"),
-        "dynamodb" => Some("Architecture-Service-Icons_01312023/Arch_Database/64/Arch_Amazon-DynamoDB_64.png"),
-        "elasticache" => Some("Architecture-Service-Icons_01312023/Arch_Database/64/Arch_Amazon-ElastiCache_64.png"),
-        "redshift" => Some("Architecture-Service-Icons_01312023/Arch_Analytics/64/Arch_Amazon-Redshift_64.png"),
-
-        // Network
-        "elb" => Some("Architecture-Service-Icons_01312023/Arch_Networking-Content-Delivery/64/Arch_Elastic-Load-Balancing_64.png"),
-        "vpc" => Some("Architecture-Service-Icons_01312023/Arch_Networking-Content-Delivery/64/Arch_Amazon-Virtual-Private-Cloud_64.png"),
-        "subnet" => Some("Architecture-Service-Icons_01312023/Arch_Networking-Content-Delivery/64/Arch_Amazon-Virtual-Private-Cloud_64.png"), // Use VPC icon
-        "route53" => Some("Architecture-Service-Icons_01312023/Arch_Networking-Content-Delivery/64/Arch_Amazon-Route-53_64.png"),
-        "cloudfront" => Some("Architecture-Service-Icons_01312023/Arch_Networking-Content-Delivery/64/Arch_Amazon-CloudFront_64.png"),
-        "apigateway" => Some("Architecture-Service-Icons_01312023/Arch_Networking-Content-Delivery/64/Arch_Amazon-API-Gateway_64.png"),
-
-        // Storage
-        "s3" => Some("Architecture-Service-Icons_01312023/Arch_Storage/64/Arch_Amazon-Simple-Storage-Service_64.png"),
-        "ebs" => Some("Architecture-Service-Icons_01312023/Arch_Storage/64/Arch_Amazon-Elastic-Block-Store_64.png"),
-        "efs" => Some("Architecture-Service-Icons_01312023/Arch_Storage/64/Arch_Amazon-Elastic-File-System_64.png"),
-
-        // Security
-        "iam" => Some("Architecture-Service-Icons_01312023/Arch_Security-Identity-Compliance/64/Arch_AWS-Identity-and-Access-Management_64.png"),
-        "kms" => Some("Architecture-Service-Icons_01312023/Arch_Security-Identity-Compliance/64/Arch_AWS-Key-Management-Service_64.png"),
-
-        // Integration
-        "sns" => Some("Architecture-Service-Icons_01312023/Arch_Application-Integration/64/Arch_Amazon-Simple-Notification-Service_64.png"),
-        "sqs" => Some("Architecture-Service-Icons_01312023/Arch_Application-Integration/64/Arch_Amazon-Simple-Queue-Service_64.png"),
-
-        // Analytics
-        "kinesis" => Some("Architecture-Service-Icons_01312023/Arch_Analytics/64/Arch_Amazon-Kinesis_64.png"),
-
-        _ => None,
-    }
-}
-
 fn download_aws_icons_zip(cache_dir: &Path) -> Result<PathBuf> {
     // Official AWS Architecture Icons download URL
-    // This is the Q1 2023 release - using a stable, known-good version
-    let zip_url = "https://d1.awsstatic.com/webteam/architecture-icons/q1-2023/Asset-Package_01312023.zip";
+    // Using the July 2025 release from the official AWS approved architecture icons
+    let zip_url = "https://d1.awsstatic.com/onedam/marketing-channels/website/aws/en_US/architecture/approved/architecture-icons/Asset-Package_07312025.49d3aab7f9e6131e51ade8f7c6c8b961ee7d3bb1.zip";
     let zip_path = cache_dir.join("aws-icons.zip");
 
     // Skip if already downloaded
@@ -169,6 +123,51 @@ fn download_aws_icons_zip(cache_dir: &Path) -> Result<PathBuf> {
     }
 
     Ok(zip_path)
+}
+
+fn get_icon_search_pattern(name: &str) -> Option<&'static str> {
+    // Search patterns for finding icons in the ZIP by filename
+    // These work across different AWS icon package versions
+    match name {
+        // Compute
+        "ec2" => Some("Amazon-EC2_64"),
+        "lambda" => Some("AWS-Lambda_64"),
+        "ecs" => Some("Amazon-Elastic-Container-Service_64"),
+        "eks" => Some("Amazon-Elastic-Kubernetes-Service_64"),
+        "autoscaling" => Some("AWS-Auto-Scaling_64"),
+
+        // Database
+        "rds" => Some("Amazon-RDS_64"),
+        "dynamodb" => Some("Amazon-DynamoDB_64"),
+        "elasticache" => Some("Amazon-ElastiCache_64"),
+        "redshift" => Some("Amazon-Redshift_64"),
+
+        // Network
+        "elb" => Some("Elastic-Load-Balancing_64"),
+        "vpc" => Some("Amazon-Virtual-Private-Cloud_64"),
+        "subnet" => Some("Amazon-Virtual-Private-Cloud_64"), // Use VPC icon
+        "route53" => Some("Amazon-Route-53_64"),
+        "cloudfront" => Some("Amazon-CloudFront_64"),
+        "apigateway" => Some("Amazon-API-Gateway_64"),
+
+        // Storage
+        "s3" => Some("Amazon-Simple-Storage-Service_64"),
+        "ebs" => Some("Amazon-Elastic-Block-Store_64"),
+        "efs" => Some("Amazon-Elastic-File-System_64"),
+
+        // Security
+        "iam" => Some("AWS-Identity-and-Access-Management_64"),
+        "kms" => Some("AWS-Key-Management-Service_64"),
+
+        // Integration
+        "sns" => Some("Amazon-Simple-Notification-Service_64"),
+        "sqs" => Some("Amazon-Simple-Queue-Service_64"),
+
+        // Analytics
+        "kinesis" => Some("Amazon-Kinesis_64"),
+
+        _ => None,
+    }
 }
 
 fn extract_icons_from_zip(zip_path: &Path, cache_dir: &Path) -> Result<usize> {
@@ -197,20 +196,24 @@ fn extract_icons_from_zip(zip_path: &Path, cache_dir: &Path) -> Result<usize> {
             continue;
         }
 
-        // Get the path within the ZIP
-        if let Some(zip_path) = get_icon_zip_path(name) {
+        // Get the search pattern for this icon
+        if let Some(pattern) = get_icon_search_pattern(name) {
             // Try to find and extract the file from the ZIP
+            // Search by filename pattern to handle different ZIP structures
             for i in 0..archive.len() {
                 let mut file = archive.by_index(i)?;
                 let file_path = file.name().to_string();
 
-                // Check if this is the icon we're looking for
-                if file_path.ends_with(zip_path) || file_path.contains(zip_path) {
-                    let mut buffer = Vec::new();
-                    file.read_to_end(&mut buffer)?;
-                    fs::write(&output_path, buffer)?;
-                    extracted_count += 1;
-                    break;
+                // Check if this file matches our search pattern and is a PNG
+                if file_path.contains(pattern) && file_path.ends_with(".png") {
+                    // Prefer 64x64 size icons
+                    if file_path.contains("/64/") || file_path.contains("_64") {
+                        let mut buffer = Vec::new();
+                        file.read_to_end(&mut buffer)?;
+                        fs::write(&output_path, buffer)?;
+                        extracted_count += 1;
+                        break;
+                    }
                 }
             }
         }
