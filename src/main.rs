@@ -500,7 +500,7 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
 
     // Graph header with modern styling
     dot.push_str(&format!("digraph \"{}\" {{\n", name));
-    dot.push_str("    graph [fontname=\"Arial\", fontsize=14, bgcolor=\"#FFFFFF\", pad=\"0.5\"];\n");
+    dot.push_str("    graph [fontname=\"Arial\", fontsize=14, bgcolor=\"transparent\", pad=\"0.5\"];\n");
     dot.push_str("    node [fontname=\"Arial\", fontsize=11];\n");
     dot.push_str("    edge [fontname=\"Arial\", fontsize=10, color=\"#2D3436\", penwidth=2.0, arrowsize=0.7];\n");
     dot.push_str(&format!("    rankdir={};\n", direction));
