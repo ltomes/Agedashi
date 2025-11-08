@@ -206,7 +206,7 @@ fn extract_icons_from_7z(archive_path: &Path, cache_dir: &Path) -> Result<usize>
         "ec2", "lambda", "ecs", "eks", "autoscaling",
         "rds", "dynamodb", "elasticache", "redshift",
         "elb", "vpc", "subnet", "route53", "cloudfront", "apigateway",
-        "s3", "ebs", "efs",
+        "s3", "ebs",
         "iam", "kms",
         "sns", "sqs",
         "kinesis",
@@ -222,11 +222,11 @@ fn extract_icons_from_7z(archive_path: &Path, cache_dir: &Path) -> Result<usize>
     sevenz_rust::decompress_file(archive_path, temp_dir.path())
         .map_err(|e| anyhow::anyhow!("Failed to extract 7z archive: {}", e))?;
 
-    // Now search the extracted files for our icons (SVG format) and convert to PNG
+    // Now search the extracted files for our icons and cache SVGs
     for name in &icon_names {
-        // Skip if already converted to PNG in cache
-        let png_path = cache_dir.join(format!("{}.png", name));
-        if png_path.exists() {
+        // Skip if already cached as SVG
+        let svg_cache_path = cache_dir.join(format!("{}.svg", name));
+        if svg_cache_path.exists() {
             extracted_count += 1;
             continue;
         }
@@ -235,15 +235,9 @@ fn extract_icons_from_7z(archive_path: &Path, cache_dir: &Path) -> Result<usize>
         if let Some(pattern) = get_icon_search_pattern(name) {
             // Search recursively from the temp directory root
             if let Some(svg_path) = find_icon_in_dir(temp_dir.path(), pattern) {
-                // Convert SVG to PNG (64x64 pixels for GraphViz)
-                match convert_svg_to_png(&svg_path, &png_path, 64) {
-                    Ok(_) => {
-                        extracted_count += 1;
-                    }
-                    Err(e) => {
-                        eprintln!("  Warning: Failed to convert {}: {}", name, e);
-                    }
-                }
+                // Copy SVG to cache (will be converted to PNG lazily when needed)
+                fs::copy(&svg_path, &svg_cache_path)?;
+                extracted_count += 1;
             }
         }
     }
@@ -282,15 +276,15 @@ fn download_icons_as_needed(cache_dir: &Path) -> Result<()> {
         "ec2", "lambda", "ecs", "eks", "autoscaling",
         "rds", "dynamodb", "elasticache", "redshift",
         "elb", "vpc", "subnet", "route53", "cloudfront", "apigateway",
-        "s3", "ebs", "efs",
+        "s3", "ebs",
         "iam", "kms",
         "sns", "sqs",
         "kinesis",
     ];
 
-    // Check if we need to extract and convert any icons
+    // Check if we need to extract any icons (SVG format)
     let needs_extraction = icon_names.iter().any(|name| {
-        !cache_dir.join(format!("{}.png", name)).exists()
+        !cache_dir.join(format!("{}.svg", name)).exists()
     });
 
     if !needs_extraction {
@@ -425,7 +419,7 @@ fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
     }
 }
 
-fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path) -> String {
+fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path, temp_dir: &Path, icon_size: u32) -> Result<String> {
     let mut dot = String::new();
 
     // Graph header with modern styling
@@ -450,21 +444,37 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
         let node_id = format!("node_{}", idx);
         let (icon_name, service_name, color, _fallback_emoji) = get_service_info(&resource.resource_type);
 
-        let icon_path = cache_dir.join(format!("{}.png", icon_name));
+        // Check if we have a cached SVG icon
+        let svg_path = cache_dir.join(format!("{}.svg", icon_name));
 
-        // Use icon if available, otherwise use colored box with emoji
-        if icon_path.exists() && !icon_name.is_empty() {
-            let icon_path_str = icon_path.to_string_lossy();
-            // GraphViz: image with label below, proper sizing for clean icons
-            // width=1.5, height=1.5 creates a 1.5"x1.5" square (standard for AWS icons)
-            // imagepos=tc centers the image at top-center
-            // penwidth=0 removes any border
-            dot.push_str(&format!(
-                "    {} [label=\"{}\", image=\"{}\", shape=none, labelloc=b, imagepos=tc, imagescale=true, fixedsize=true, width=1.5, height=1.5, fontsize=11, penwidth=0];\n",
-                node_id, resource.label, icon_path_str
-            ));
+        // Use icon if available, otherwise use colored box
+        if svg_path.exists() && !icon_name.is_empty() {
+            // Convert SVG to PNG in temp directory at the requested size
+            let png_path = temp_dir.join(format!("{}.png", icon_name));
+
+            match convert_svg_to_png(&svg_path, &png_path, icon_size) {
+                Ok(_) => {
+                    let icon_path_str = png_path.to_string_lossy();
+                    // GraphViz: image with label below, proper sizing for clean icons
+                    // width=1.5, height=1.5 creates a 1.5"x1.5" square (standard for AWS icons)
+                    // imagepos=tc centers the image at top-center
+                    // penwidth=0 removes any border
+                    dot.push_str(&format!(
+                        "    {} [label=\"{}\", image=\"{}\", shape=none, labelloc=b, imagepos=tc, imagescale=true, fixedsize=true, width=1.5, height=1.5, fontsize=11, penwidth=0];\n",
+                        node_id, resource.label, icon_path_str
+                    ));
+                }
+                Err(_) => {
+                    // Fallback to styled box if conversion fails
+                    let label = format!("{}\\n{}", service_name, resource.label);
+                    dot.push_str(&format!(
+                        "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box, width=1.5, height=1.0];\n",
+                        node_id, label, color
+                    ));
+                }
+            }
         } else {
-            // Fallback to styled box with service name (no emoji - cleaner)
+            // Fallback to styled box with service name
             let label = format!("{}\\n{}", service_name, resource.label);
             dot.push_str(&format!(
                 "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box, width=1.5, height=1.0];\n",
@@ -485,7 +495,7 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
     }
 
     dot.push_str("}\n");
-    dot
+    Ok(dot)
 }
 
 fn execute_dot_command(dot_content: &str, output_format: &str, output_file: &str) -> Result<()> {
@@ -567,13 +577,13 @@ fn main() -> Result<()> {
     // Then, download any missing icons from the internet (cached)
     download_icons_as_needed(&cache_dir)?;
 
-    // Count how many icons we have available
+    // Count how many icons we have available (SVG format)
     let icon_count = ["ec2", "lambda", "ecs", "eks", "autoscaling",
                       "rds", "dynamodb", "elasticache", "redshift",
                       "elb", "vpc", "subnet", "route53", "cloudfront", "apigateway",
-                      "s3", "ebs", "efs", "iam", "kms", "sns", "sqs", "kinesis"]
+                      "s3", "ebs", "iam", "kms", "sns", "sqs", "kinesis"]
         .iter()
-        .filter(|name| cache_dir.join(format!("{}.png", name)).exists())
+        .filter(|name| cache_dir.join(format!("{}.svg", name)).exists())
         .count();
 
     if icon_count > 0 {
@@ -582,8 +592,13 @@ fn main() -> Result<()> {
         eprintln!("Using fallback styled boxes (icons unavailable)");
     }
 
-    // Generate DOT graph
-    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir);
+    // Create temp directory for PNG conversions
+    let temp_dir = tempfile::tempdir()
+        .context("Failed to create temporary directory for icon conversion")?;
+
+    // Generate DOT graph with lazy icon conversion
+    // Icons are converted from cached SVG to PNG at 128x128 for high quality
+    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, temp_dir.path(), 128)?;
 
     // Output file path
     let output_file = format!("{}.{}", cli.name, cli.output);
