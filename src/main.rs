@@ -118,11 +118,87 @@ fn convert_svg_to_png(svg_path: &Path, png_path: &Path, size: u32) -> Result<()>
     let transform = tiny_skia::Transform::from_scale(scale, scale);
     resvg::render(&tree, transform, &mut pixmap.as_mut());
 
+    // Apply rounded corners
+    let corner_radius = (size as f32 * 0.1) as f32; // 10% radius for nice rounded corners
+    apply_rounded_corners(&mut pixmap, corner_radius);
+
     // Save as PNG
     pixmap.save_png(png_path)
         .map_err(|e| anyhow::anyhow!("Failed to save PNG: {}", e))?;
 
     Ok(())
+}
+
+fn apply_rounded_corners(pixmap: &mut tiny_skia::Pixmap, radius: f32) {
+    use tiny_skia::*;
+
+    let width = pixmap.width() as f32;
+    let height = pixmap.height() as f32;
+
+    // Create a path with rounded rectangle
+    let mut path_builder = PathBuilder::new();
+
+    // Start at top-left corner (after rounding)
+    path_builder.move_to(radius, 0.0);
+
+    // Top edge
+    path_builder.line_to(width - radius, 0.0);
+
+    // Top-right corner
+    path_builder.quad_to(width, 0.0, width, radius);
+
+    // Right edge
+    path_builder.line_to(width, height - radius);
+
+    // Bottom-right corner
+    path_builder.quad_to(width, height, width - radius, height);
+
+    // Bottom edge
+    path_builder.line_to(radius, height);
+
+    // Bottom-left corner
+    path_builder.quad_to(0.0, height, 0.0, height - radius);
+
+    // Left edge
+    path_builder.line_to(0.0, radius);
+
+    // Top-left corner
+    path_builder.quad_to(0.0, 0.0, radius, 0.0);
+
+    path_builder.close();
+
+    let path = path_builder.finish().unwrap();
+
+    // Create a mask pixmap
+    let mut mask = Pixmap::new(pixmap.width(), pixmap.height()).unwrap();
+
+    // Fill the mask with the rounded rectangle
+    let mut paint = Paint::default();
+    paint.set_color_rgba8(255, 255, 255, 255);
+
+    mask.fill_path(
+        &path,
+        &paint,
+        FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
+
+    // Apply the mask to the original pixmap
+    let width = pixmap.width();
+    let height = pixmap.height();
+
+    for y in 0..height {
+        for x in 0..width {
+            let mask_pixel = mask.pixel(x, y).unwrap();
+
+            // If the mask is transparent at this pixel, make the pixmap transparent too
+            if mask_pixel.alpha() == 0 {
+                let idx = (y * width + x) as usize;
+                pixmap.pixels_mut()[idx] = tiny_skia::ColorU8::from_rgba(0, 0, 0, 0).premultiply();
+            }
+        }
+    }
 }
 
 fn get_bundled_icons_path() -> PathBuf {
