@@ -23,8 +23,12 @@ override.tf.json
 *.jpg
 *.dot
 
-# But keep test fixtures
+# But keep test fixtures and samples
 !test/*.dot
+!samples/*.png
+!samples/*.svg
+!samples/*.pdf
+!samples/*.jpg
 
 # IDE
 .vscode/
