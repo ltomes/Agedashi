@@ -10,3 +10,4 @@ regex = "1.10"
 tempfile = "3.8"
 ureq = { version = "2.9", features = ["tls"] }
 zip = "0.6"
+sevenz-rust = "0.6"
