@@ -43,41 +43,31 @@ jobs:
     - name: Build agedashi
       run: cargo build --release
 
+    - name: Create samples directory
+      run: mkdir -p samples
+
     - name: Generate PNG diagram
-      run: cat test/sample-graph.dot | ./target/release/agedashi --output png --name sample-infrastructure
+      run: cat test/sample-graph.dot | ./target/release/agedashi --output png --name samples/sample-infrastructure
 
     - name: Generate SVG diagram
-      run: cat test/sample-graph.dot | ./target/release/agedashi --output svg --name sample-infrastructure
+      run: cat test/sample-graph.dot | ./target/release/agedashi --output svg --name samples/sample-infrastructure
 
     - name: Generate PDF diagram
-      run: cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name sample-infrastructure
+      run: cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name samples/sample-infrastructure
 
     - name: List generated files
-      run: ls -lh sample-infrastructure.*
+      run: ls -lh samples/
 
-    - name: Upload PNG diagram
-      uses: actions/upload-artifact@v4
-      with:
-        name: sample-diagram-png
-        path: sample-infrastructure.png
+    - name: Commit diagrams to repository
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add samples/
+        git diff --staged --quiet || git commit -m "Update sample diagrams [skip ci]"
 
-    - name: Upload SVG diagram
-      uses: actions/upload-artifact@v4
+    - name: Push changes
+      uses: ad-m/github-push-action@master
       with:
-        name: sample-diagram-svg
-        path: sample-infrastructure.svg
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
 
-    - name: Upload PDF diagram
-      uses: actions/upload-artifact@v4
-      with:
-        name: sample-diagram-pdf
-        path: sample-infrastructure.pdf
-
-    - name: Upload all diagrams
-      uses: actions/upload-artifact@v4
-      with:
-        name: sample-diagrams-all-formats
-        path: |
-          sample-infrastructure.png
-          sample-infrastructure.svg
-          sample-infrastructure.pdf
