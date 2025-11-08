@@ -495,7 +495,7 @@ fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
     }
 }
 
-fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path, temp_dir: &Path, icon_size: u32, output_format: &str) -> Result<String> {
+fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path, temp_dir: &Path, icon_size: u32) -> Result<String> {
     let mut dot = String::new();
 
     // Graph header with modern styling
@@ -525,44 +525,31 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
 
         // Use icon if available, otherwise use colored box
         if svg_path.exists() && !icon_name.is_empty() {
-            // For SVG output, use SVG icons directly. For other formats, convert to PNG
-            if output_format == "svg" {
-                // Use SVG icon directly for SVG output
-                let icon_path_str = svg_path.to_string_lossy();
-                let html_label = format!(
-                    "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"#2D3436\">{}</FONT></TD></TR></TABLE>>",
-                    icon_path_str, resource.label
-                );
-                dot.push_str(&format!(
-                    "    {} [label={}, shape=plaintext, fontsize=10];\n",
-                    node_id, html_label
-                ));
-            } else {
-                // Convert SVG to PNG for non-SVG output formats
-                let png_path = temp_dir.join(format!("{}.png", icon_name));
+            // Convert SVG to PNG for all output formats (GraphViz doesn't embed SVG in SVG output)
+            let png_path = temp_dir.join(format!("{}.png", icon_name));
 
-                match convert_svg_to_png(&svg_path, &png_path, icon_size) {
-                    Ok(_) => {
-                        let icon_path_str = png_path.to_string_lossy();
-                        // GraphViz: HTML-like label with image in table cell and grey text below
-                        // Text color matches the connecting lines (#2D3436)
-                        let html_label = format!(
-                            "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"#2D3436\">{}</FONT></TD></TR></TABLE>>",
-                            icon_path_str, resource.label
-                        );
-                        dot.push_str(&format!(
-                            "    {} [label={}, shape=plaintext, fontsize=10];\n",
-                            node_id, html_label
-                        ));
-                    }
-                    Err(_) => {
-                        // Fallback to styled box if conversion fails
-                        let label = format!("{}\\n{}", service_name, resource.label);
-                        dot.push_str(&format!(
-                            "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box, width=1.5, height=1.0];\n",
-                            node_id, label, color
-                        ));
-                    }
+            match convert_svg_to_png(&svg_path, &png_path, icon_size) {
+                Ok(_) => {
+                    let icon_path_str = png_path.to_string_lossy();
+                    // GraphViz: HTML-like label with image in table cell and grey text below
+                    // SCALE="TRUE" ensures proportional sizing, WIDTH/HEIGHT set consistent size
+                    // Text color matches the connecting lines (#2D3436)
+                    let html_label = format!(
+                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD><IMG SCALE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\" SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"#2D3436\">{}</FONT></TD></TR></TABLE>>",
+                        icon_size, icon_size, icon_path_str, resource.label
+                    );
+                    dot.push_str(&format!(
+                        "    {} [label={}, shape=plaintext, fontsize=10];\n",
+                        node_id, html_label
+                    ));
+                }
+                Err(_) => {
+                    // Fallback to styled box if conversion fails
+                    let label = format!("{}\\n{}", service_name, resource.label);
+                    dot.push_str(&format!(
+                        "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box, width=1.5, height=1.0];\n",
+                        node_id, label, color
+                    ));
                 }
             }
         } else {
@@ -689,8 +676,8 @@ fn main() -> Result<()> {
         .context("Failed to create temporary directory for icon conversion")?;
 
     // Generate DOT graph with lazy icon conversion
-    // For SVG output, use SVG icons directly. For other formats, convert to PNG at 128x128
-    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, temp_dir.path(), 128, &cli.output)?;
+    // Icons are converted from SVG to PNG at 128x128 for consistent sizing across all formats
+    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, temp_dir.path(), 128)?;
 
     // Output file path
     let output_file = format!("{}.{}", cli.name, cli.output);
