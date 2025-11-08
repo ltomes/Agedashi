@@ -93,6 +93,38 @@ fn extract_embedded_icons(cache_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+fn convert_svg_to_png(svg_path: &Path, png_path: &Path, size: u32) -> Result<()> {
+    // Read the SVG file
+    let svg_data = fs::read(svg_path)
+        .context("Failed to read SVG file")?;
+
+    // Parse the SVG with default options
+    let tree = usvg::Tree::from_data(&svg_data, &usvg::Options::default())
+        .map_err(|e| anyhow::anyhow!("Failed to parse SVG: {}", e))?;
+
+    // Get the SVG size and calculate the scaling factor
+    let svg_size = tree.size();
+    let scale = if svg_size.width() > svg_size.height() {
+        size as f32 / svg_size.width()
+    } else {
+        size as f32 / svg_size.height()
+    };
+
+    // Create a pixmap with the desired size
+    let mut pixmap = tiny_skia::Pixmap::new(size, size)
+        .ok_or_else(|| anyhow::anyhow!("Failed to create pixmap"))?;
+
+    // Render the SVG to the pixmap with scaling
+    let transform = tiny_skia::Transform::from_scale(scale, scale);
+    resvg::render(&tree, transform, &mut pixmap.as_mut());
+
+    // Save as PNG
+    pixmap.save_png(png_path)
+        .map_err(|e| anyhow::anyhow!("Failed to save PNG: {}", e))?;
+
+    Ok(())
+}
+
 fn get_bundled_icons_path() -> PathBuf {
     // Icons are bundled with the binary in the icons/ directory
     // This could be relative to the current directory or the binary location
@@ -190,11 +222,11 @@ fn extract_icons_from_7z(archive_path: &Path, cache_dir: &Path) -> Result<usize>
     sevenz_rust::decompress_file(archive_path, temp_dir.path())
         .map_err(|e| anyhow::anyhow!("Failed to extract 7z archive: {}", e))?;
 
-    // Now search the extracted files for our icons (SVG format)
+    // Now search the extracted files for our icons (SVG format) and convert to PNG
     for name in &icon_names {
-        // Skip if already extracted to cache
-        let output_path = cache_dir.join(format!("{}.svg", name));
-        if output_path.exists() {
+        // Skip if already converted to PNG in cache
+        let png_path = cache_dir.join(format!("{}.png", name));
+        if png_path.exists() {
             extracted_count += 1;
             continue;
         }
@@ -202,9 +234,16 @@ fn extract_icons_from_7z(archive_path: &Path, cache_dir: &Path) -> Result<usize>
         // Get the search pattern for this icon
         if let Some(pattern) = get_icon_search_pattern(name) {
             // Search recursively from the temp directory root
-            if let Some(icon_path) = find_icon_in_dir(temp_dir.path(), pattern) {
-                fs::copy(&icon_path, &output_path)?;
-                extracted_count += 1;
+            if let Some(svg_path) = find_icon_in_dir(temp_dir.path(), pattern) {
+                // Convert SVG to PNG (64x64 pixels for GraphViz)
+                match convert_svg_to_png(&svg_path, &png_path, 64) {
+                    Ok(_) => {
+                        extracted_count += 1;
+                    }
+                    Err(e) => {
+                        eprintln!("  Warning: Failed to convert {}: {}", name, e);
+                    }
+                }
             }
         }
     }
@@ -249,9 +288,9 @@ fn download_icons_as_needed(cache_dir: &Path) -> Result<()> {
         "kinesis",
     ];
 
-    // Check if we need to extract any icons (SVG format)
+    // Check if we need to extract and convert any icons
     let needs_extraction = icon_names.iter().any(|name| {
-        !cache_dir.join(format!("{}.svg", name)).exists()
+        !cache_dir.join(format!("{}.png", name)).exists()
     });
 
     if !needs_extraction {
@@ -411,7 +450,7 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
         let node_id = format!("node_{}", idx);
         let (icon_name, service_name, color, _fallback_emoji) = get_service_info(&resource.resource_type);
 
-        let icon_path = cache_dir.join(format!("{}.svg", icon_name));
+        let icon_path = cache_dir.join(format!("{}.png", icon_name));
 
         // Use icon if available, otherwise use colored box with emoji
         if icon_path.exists() && !icon_name.is_empty() {
@@ -534,7 +573,7 @@ fn main() -> Result<()> {
                       "elb", "vpc", "subnet", "route53", "cloudfront", "apigateway",
                       "s3", "ebs", "efs", "iam", "kms", "sns", "sqs", "kinesis"]
         .iter()
-        .filter(|name| cache_dir.join(format!("{}.svg", name)).exists())
+        .filter(|name| cache_dir.join(format!("{}.png", name)).exists())
         .count();
 
     if icon_count > 0 {

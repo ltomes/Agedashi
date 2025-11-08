@@ -11,3 +11,6 @@ tempfile = "3.8"
 ureq = { version = "2.9", features = ["tls"] }
 zip = "0.6"
 sevenz-rust = "0.6"
+resvg = "0.43"
+usvg = "0.43"
+tiny-skia = "0.11"
