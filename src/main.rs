@@ -531,14 +531,15 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
             match convert_svg_to_png(&svg_path, &png_path, icon_size) {
                 Ok(_) => {
                     let icon_path_str = png_path.to_string_lossy();
-                    // GraphViz: image with label positioned below
-                    // labelloc=b positions label at bottom of the node
-                    // imagepos=t positions image at top, leaving room for label below
-                    // height=2.0 gives space for both image and label text
-                    // style=invis makes the node border invisible
+                    // GraphViz: HTML-like label with image in table cell and text below
+                    // This ensures the label appears below the image in a structured way
+                    let html_label = format!(
+                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD><IMG SRC=\"{}\"/></TD></TR><TR><TD>{}</TD></TR></TABLE>>",
+                        icon_path_str, resource.label
+                    );
                     dot.push_str(&format!(
-                        "    {} [label=\"{}\", image=\"{}\", shape=box, labelloc=b, imagepos=t, imagescale=true, fixedsize=true, width=1.5, height=2.0, fontsize=10, penwidth=0, style=invis];\n",
-                        node_id, resource.label, icon_path_str
+                        "    {} [label={}, shape=plaintext, fontsize=10];\n",
+                        node_id, html_label
                     ));
                 }
                 Err(_) => {
