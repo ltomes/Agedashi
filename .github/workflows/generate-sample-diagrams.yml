@@ -3,8 +3,9 @@ name: Generate Sample Diagrams
 on:
   push:
     branches: [ "**" ]
-  pull_request:
-    branches: [ "**" ]
+
+permissions:
+  contents: write
 
 jobs:
   generate-diagrams:
@@ -12,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Install GraphViz
       run: sudo apt-get update && sudo apt-get install -y graphviz
@@ -58,16 +61,15 @@ jobs:
     - name: List generated files
       run: ls -lh samples/
 
-    - name: Commit diagrams to repository
+    - name: Commit and push diagrams
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         git add samples/
-        git diff --staged --quiet || git commit -m "Update sample diagrams [skip ci]"
-
-    - name: Push changes
-      uses: ad-m/github-push-action@master
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: ${{ github.ref }}
+        if ! git diff --staged --quiet; then
+          git commit -m "Update sample diagrams [skip ci]"
+          git push
+        else
+          echo "No changes to commit"
+        fi
 
