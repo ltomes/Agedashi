@@ -82,7 +82,8 @@ jobs:
         git add samples/
         if ! git diff --staged --quiet; then
           git commit -m "Update sample diagrams [skip ci]"
-          git push
+          BRANCH_NAME="${{ github.ref_name }}"
+          git push -u origin "$BRANCH_NAME"
         else
           echo "No changes to commit"
         fi
