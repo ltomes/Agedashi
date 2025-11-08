@@ -1,0 +1,83 @@
+name: Generate Sample Diagrams
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  generate-diagrams:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install GraphViz
+      run: sudo apt-get update && sudo apt-get install -y graphviz
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo index
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo build
+      uses: actions/cache@v4
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build agedashi
+      run: cargo build --release
+
+    - name: Generate PNG diagram
+      run: cat test/sample-graph.dot | ./target/release/agedashi --output png --name sample-infrastructure
+
+    - name: Generate SVG diagram
+      run: cat test/sample-graph.dot | ./target/release/agedashi --output svg --name sample-infrastructure
+
+    - name: Generate PDF diagram
+      run: cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name sample-infrastructure
+
+    - name: List generated files
+      run: ls -lh sample-infrastructure.*
+
+    - name: Upload PNG diagram
+      uses: actions/upload-artifact@v4
+      with:
+        name: sample-diagram-png
+        path: sample-infrastructure.png
+
+    - name: Upload SVG diagram
+      uses: actions/upload-artifact@v4
+      with:
+        name: sample-diagram-svg
+        path: sample-infrastructure.svg
+
+    - name: Upload PDF diagram
+      uses: actions/upload-artifact@v4
+      with:
+        name: sample-diagram-pdf
+        path: sample-infrastructure.pdf
+
+    - name: Upload all diagrams
+      uses: actions/upload-artifact@v4
+      with:
+        name: sample-diagrams-all-formats
+        path: |
+          sample-infrastructure.png
+          sample-infrastructure.svg
+          sample-infrastructure.pdf
