@@ -531,13 +531,13 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
             match convert_svg_to_png(&svg_path, &png_path, icon_size) {
                 Ok(_) => {
                     let icon_path_str = png_path.to_string_lossy();
-                    // GraphViz: image with external label below
-                    // xlabel places the label outside the node boundary, guaranteed to be below the image
-                    // width=1.5, height=1.5 creates a 1.5"x1.5" square (standard for AWS icons)
-                    // label="" makes the node just the image, xlabel adds text below
-                    // penwidth=0 removes any border
+                    // GraphViz: image with label positioned below
+                    // labelloc=b positions label at bottom of the node
+                    // imagepos=t positions image at top, leaving room for label below
+                    // height=2.0 gives space for both image and label text
+                    // style=invis makes the node border invisible
                     dot.push_str(&format!(
-                        "    {} [label=\"\", xlabel=\"{}\", image=\"{}\", shape=none, imagescale=true, fixedsize=true, width=1.5, height=1.5, fontsize=10, penwidth=0];\n",
+                        "    {} [label=\"{}\", image=\"{}\", shape=box, labelloc=b, imagepos=t, imagescale=true, fixedsize=true, width=1.5, height=2.0, fontsize=10, penwidth=0, style=invis];\n",
                         node_id, resource.label, icon_path_str
                     ));
                 }
