@@ -2,11 +2,11 @@
 
 *Making tofu pretty!* 🍲
 
-A pure Rust CLI utility that transforms Terraform/OpenTofu graph output into beautiful infrastructure diagrams.
+A Rust CLI utility that transforms Terraform/OpenTofu graph output into beautiful infrastructure diagrams.
 
 ## Overview
 
-Agedashi is a pure Rust command-line tool that reads Terraform/OpenTofu graph output and automatically generates visual architecture diagrams. It focuses on AWS resources and creates professional-looking infrastructure diagrams with minimal effort - **no Python required**!
+Agedashi is a Rust command-line tool that reads Terraform/OpenTofu graph output and automatically generates visual architecture diagrams. It focuses on AWS resources and creates professional-looking infrastructure diagrams with minimal effort.
 
 **Why "Agedashi"?** Like the Japanese dish where tofu is deep-fried to perfection, Agedashi takes your infrastructure-as-code (tofu/OpenTofu) and makes it visually appealing!
 
@@ -20,29 +20,29 @@ The diagram shows AWS resources with official AWS Architecture Icons, clean layo
 
 ## Features
 
-- **Pure Rust**: No Python dependency, truly portable single binary
-- **Simple CLI Interface**: Just pipe your Terraform graph output directly to agedashi
+- **Built with Rust**: Fast, reliable, and memory-safe
+- **Simple CLI Interface**: Just pipe your OpenTofu/Terraform graph output directly to agedashi
 - **Multiple Output Formats**: Generate diagrams in SVG, PNG, PDF, or JPG
 - **AWS Resource Mapping**: Automatically maps 25+ AWS resource types to official AWS icons
 - **Official AWS Icons**: Uses AWS Architecture Icons from official AWS repository
 - **Customizable Layout**: Control diagram direction (top-to-bottom or left-to-right)
 - **No Configuration Required**: Works out of the box with sensible defaults
-- **Fast**: Native Rust performance
+- **Transparent Backgrounds**: Generated diagrams work on light and dark themes
 
 ## Prerequisites
 
-### System Requirements
+### Runtime Requirements
 
-1. **Rust** (for building from source)
-   - Install from [rustup.rs](https://rustup.rs/)
+**GraphViz** is required to render diagrams:
+- **macOS**: `brew install graphviz`
+- **Ubuntu/Debian**: `sudo apt-get install graphviz`
+- **Fedora**: `sudo dnf install graphviz`
+- **Windows**: Download from [graphviz.org](https://graphviz.org/download/)
 
-2. **GraphViz** (for rendering diagrams)
-   - **macOS**: `brew install graphviz`
-   - **Ubuntu/Debian**: `sudo apt-get install graphviz`
-   - **Fedora**: `sudo dnf install graphviz`
-   - **Windows**: Download from [graphviz.org](https://graphviz.org/download/)
+### Build Requirements (if building from source)
 
-That's it! No Python, no additional libraries needed.
+**Rust** toolchain:
+- Install from [rustup.rs](https://rustup.rs/)
 
 ## Installation
 
@@ -182,11 +182,13 @@ Resources not explicitly mapped will default to EC2 icons.
 1. **Input**: Agedashi reads Terraform graph output (in DOT format) from stdin
 2. **Parse**: Extracts resource nodes and their relationships using Rust regex
 3. **Map**: Maps Terraform resource types to official AWS Architecture Icons
-4. **Generate**: Creates enhanced GraphViz DOT format with icon URLs and styling
-5. **Render**: Uses GraphViz `dot` command to render the diagram
-6. **Output**: Saves the diagram in your specified format (PNG/SVG/PDF/JPG)
+4. **Convert**: Converts cached SVG icons to PNG with rounded corners
+5. **Generate**: Creates enhanced GraphViz DOT format with embedded icons and styling
+6. **Render**: Invokes GraphViz `dot` command to render the final diagram
+7. **Post-process**: For SVG output, embeds images as base64 for portability
+8. **Output**: Saves the diagram in your specified format (PNG/SVG/PDF/JPG)
 
-All processing is done in pure Rust - no Python interpreter or external libraries needed!
+The core logic is written in Rust for speed and reliability, with GraphViz handling the final layout and rendering.
 
 ## Examples Directory
 
