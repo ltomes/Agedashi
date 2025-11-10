@@ -27,6 +27,10 @@ struct Cli {
     /// Show graph direction (TB=top-to-bottom, LR=left-to-right)
     #[arg(short, long, default_value = "TB")]
     direction: String,
+
+    /// Color for edges and text (hex color code)
+    #[arg(short, long, default_value = "#2D3436")]
+    color: String,
 }
 
 #[derive(Debug, Clone)]
@@ -496,14 +500,14 @@ fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
     }
 }
 
-fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path, temp_dir: &Path, icon_size: u32) -> Result<String> {
+fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path, temp_dir: &Path, icon_size: u32, color: &str) -> Result<String> {
     let mut dot = String::new();
 
     // Graph header with modern styling
     dot.push_str(&format!("digraph \"{}\" {{\n", name));
     dot.push_str("    graph [fontname=\"Arial\", fontsize=14, bgcolor=\"transparent\", pad=\"0.5\"];\n");
     dot.push_str("    node [fontname=\"Arial\", fontsize=11];\n");
-    dot.push_str("    edge [fontname=\"Arial\", fontsize=10, color=\"#2D3436\", penwidth=2.0, arrowsize=0.7];\n");
+    dot.push_str(&format!("    edge [fontname=\"Arial\", fontsize=10, color=\"{}\", penwidth=2.0, arrowsize=0.7];\n", color));
     dot.push_str(&format!("    rankdir={};\n", direction));
     dot.push_str("    splines=ortho;\n");
     dot.push_str("    nodesep=1.0;\n");
@@ -532,12 +536,12 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
             match convert_svg_to_png(&svg_path, &png_path, icon_size) {
                 Ok(_) => {
                     let icon_path_str = png_path.to_string_lossy();
-                    // GraphViz: HTML-like label with image in table cell and grey text below
+                    // GraphViz: HTML-like label with image in table cell and colored text below
                     // Set FIXEDSIZE on TD to constrain image proportionally for PDF output
-                    // Text color matches the connecting lines (#2D3436)
+                    // Text color matches the edge color
                     let html_label = format!(
-                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"#2D3436\">{}</FONT></TD></TR></TABLE>>",
-                        icon_size, icon_size, icon_path_str, resource.label
+                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
+                        icon_size, icon_size, icon_path_str, color, resource.label
                     );
                     dot.push_str(&format!(
                         "    {} [label={}, shape=plaintext, fontsize=10];\n",
@@ -679,7 +683,7 @@ fn main() -> Result<()> {
     // Generate DOT graph with lazy icon conversion
     // Icons are converted from SVG to PNG at 128x128
     // For SVG output, the generated SVG is post-processed to embed PNGs as base64
-    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, temp_dir.path(), 128)?;
+    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, temp_dir.path(), 128, &cli.color)?;
 
     // Output file path
     let output_file = format!("{}.{}", cli.name, cli.output);
