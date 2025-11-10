@@ -94,9 +94,14 @@ jobs:
       - name: Generate sample diagrams
         run: |
           mkdir -p release-samples
-          cat test/sample-graph.dot | ./target/release/agedashi --output png --name release-samples/sample-infrastructure
-          cat test/sample-graph.dot | ./target/release/agedashi --output svg --name release-samples/sample-infrastructure
-          cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name release-samples/sample-infrastructure
+          # Generate TB (top-to-bottom) diagrams
+          cat test/sample-graph.dot | ./target/release/agedashi --output png --name release-samples/sample-infrastructure-tb --direction TB
+          cat test/sample-graph.dot | ./target/release/agedashi --output svg --name release-samples/sample-infrastructure-tb --direction TB
+          cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name release-samples/sample-infrastructure-tb --direction TB
+          # Generate LR (left-to-right) diagrams
+          cat test/sample-graph.dot | ./target/release/agedashi --output png --name release-samples/sample-infrastructure-lr --direction LR
+          cat test/sample-graph.dot | ./target/release/agedashi --output svg --name release-samples/sample-infrastructure-lr --direction LR
+          cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name release-samples/sample-infrastructure-lr --direction LR
 
       - name: Create release archives
         run: |

@@ -12,11 +12,17 @@ Agedashi is a Rust command-line tool that reads Terraform/OpenTofu graph output 
 
 ## Sample Output
 
-Here's an example of what Agedashi generates from a Terraform graph:
+Here's what Agedashi generates from a Terraform graph in different layouts:
 
-![Sample Infrastructure Diagram](samples/sample-infrastructure.png)
+### Top-to-Bottom Layout (Default)
 
-The diagram shows AWS resources with official AWS Architecture Icons, clean layouts, and automatic relationship mapping. Icons have rounded corners for a modern appearance, and resource names appear below each icon.
+![Sample Infrastructure Diagram - TB](samples/sample-infrastructure-tb.png)
+
+### Left-to-Right Layout
+
+![Sample Infrastructure Diagram - LR](samples/sample-infrastructure-lr.png)
+
+The diagrams show AWS resources with official AWS Architecture Icons, clean layouts, and automatic relationship mapping. Icons have rounded corners for a modern appearance, and resource names appear below each icon.
 
 ## Features
 

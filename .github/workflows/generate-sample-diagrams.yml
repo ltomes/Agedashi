@@ -49,14 +49,17 @@ jobs:
     - name: Create samples directory
       run: mkdir -p samples
 
-    - name: Generate PNG diagram
-      run: cat test/sample-graph.dot | ./target/release/agedashi --output png --name samples/sample-infrastructure
+    - name: Generate TB (top-to-bottom) diagrams
+      run: |
+        cat test/sample-graph.dot | ./target/release/agedashi --output png --name samples/sample-infrastructure-tb --direction TB
+        cat test/sample-graph.dot | ./target/release/agedashi --output svg --name samples/sample-infrastructure-tb --direction TB
+        cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name samples/sample-infrastructure-tb --direction TB
 
-    - name: Generate SVG diagram
-      run: cat test/sample-graph.dot | ./target/release/agedashi --output svg --name samples/sample-infrastructure
-
-    - name: Generate PDF diagram
-      run: cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name samples/sample-infrastructure
+    - name: Generate LR (left-to-right) diagrams
+      run: |
+        cat test/sample-graph.dot | ./target/release/agedashi --output png --name samples/sample-infrastructure-lr --direction LR
+        cat test/sample-graph.dot | ./target/release/agedashi --output svg --name samples/sample-infrastructure-lr --direction LR
+        cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name samples/sample-infrastructure-lr --direction LR
 
     - name: List generated files
       run: ls -lh samples/
@@ -67,11 +70,11 @@ jobs:
         BRANCH="${{ github.ref_name }}"
         echo "## Generated Diagrams" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### PNG Output" >> $GITHUB_STEP_SUMMARY
-        echo "![Sample Infrastructure Diagram](https://raw.githubusercontent.com/${REPO}/${BRANCH}/samples/sample-infrastructure.png)" >> $GITHUB_STEP_SUMMARY
+        echo "### Top-to-Bottom Layout" >> $GITHUB_STEP_SUMMARY
+        echo "![TB Diagram](https://raw.githubusercontent.com/${REPO}/${BRANCH}/samples/sample-infrastructure-tb.png)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### SVG Output" >> $GITHUB_STEP_SUMMARY
-        echo "![Sample Infrastructure Diagram](https://raw.githubusercontent.com/${REPO}/${BRANCH}/samples/sample-infrastructure.svg)" >> $GITHUB_STEP_SUMMARY
+        echo "### Left-to-Right Layout" >> $GITHUB_STEP_SUMMARY
+        echo "![LR Diagram](https://raw.githubusercontent.com/${REPO}/${BRANCH}/samples/sample-infrastructure-lr.png)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "[View all samples in repository →](https://github.com/${REPO}/tree/${BRANCH}/samples)" >> $GITHUB_STEP_SUMMARY
 
