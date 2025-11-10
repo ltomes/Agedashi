@@ -49,7 +49,7 @@ The diagram shows AWS resources with official AWS Architecture Icons, clean layo
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/agedashi.git
+git clone https://github.com/ltomes/Agedashi.git
 cd agedashi
 cargo build --release
 sudo cp target/release/agedashi /usr/local/bin/
