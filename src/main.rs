@@ -1314,4 +1314,193 @@ digraph {
         // Verify edges
         assert_eq!(graph.edges.len(), 3, "Expected 3 edges to be parsed");
     }
+
+    #[test]
+    fn test_visual_regression_complex_modules() {
+        // Visual regression test: Generate a diagram from a complex real-world scenario
+        // This test produces output that developers can visually inspect for regressions
+        // The diagram includes:
+        // - Module-prefixed resources (multiple levels of nesting)
+        // - Data sources
+        // - Regular resources
+        // - Complex dependency chains
+
+        println!("\n╔══════════════════════════════════════════════════════════════╗");
+        println!("║          Visual Regression Test: Complex Modules            ║");
+        println!("╚══════════════════════════════════════════════════════════════╝\n");
+
+        // Create output directory for visual inspection
+        let output_dir = PathBuf::from("test/output");
+        fs::create_dir_all(&output_dir).expect("Failed to create output directory");
+
+        // Create temporary directories for icon cache
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let cache_dir = temp_dir.path().join("cache");
+        fs::create_dir_all(&cache_dir).expect("Failed to create cache dir");
+        let temp_graph_dir = temp_dir.path().join("temp");
+        fs::create_dir_all(&temp_graph_dir).expect("Failed to create temp dir");
+
+        // Extract icons if available
+        let bundled_icons = get_bundled_icons_path();
+        if bundled_icons.exists() {
+            match extract_icons_from_7z(&bundled_icons, &cache_dir) {
+                Ok(count) => println!("  ✓ Extracted {} icons from archive", count),
+                Err(e) => println!("  ⚠ Icon extraction failed ({}), using fallback boxes", e),
+            }
+        } else {
+            println!("  ⚠ No bundled icons found, using fallback boxes");
+        }
+
+        // Read the complex test fixture
+        let test_dot_path = "test/complex-modules-test.dot";
+        let dot_content = fs::read_to_string(test_dot_path)
+            .expect(&format!("Failed to read test fixture: {}", test_dot_path));
+
+        // Parse the graph
+        let graph = parse_dot_graph(&dot_content)
+            .expect("Failed to parse complex test fixture");
+
+        println!("\n  📊 Parsed Graph Statistics:");
+        println!("     Total resources: {}", graph.resources.len());
+        println!("     Total edges: {}", graph.edges.len());
+
+        // Count different resource types
+        let module_resources = graph.resources.iter()
+            .filter(|r| r.name.starts_with("module."))
+            .count();
+        let data_sources = graph.resources.iter()
+            .filter(|r| r.name.starts_with("data."))
+            .count();
+        let regular_resources = graph.resources.iter()
+            .filter(|r| !r.name.starts_with("module.") && !r.name.starts_with("data.") && !r.name.starts_with("provider"))
+            .count();
+
+        println!("     Module resources: {}", module_resources);
+        println!("     Data sources: {}", data_sources);
+        println!("     Regular resources: {}", regular_resources);
+
+        // Filter AWS resources (same as generate_dot_graph does)
+        let aws_resources: Vec<_> = graph.resources.iter()
+            .filter(|r| r.resource_type.contains("aws_"))
+            .collect();
+
+        println!("     AWS resources (after filtering): {}", aws_resources.len());
+
+        // Verify that module resources are included
+        let module_aws_count = aws_resources.iter()
+            .filter(|r| r.name.starts_with("module."))
+            .count();
+        let data_aws_count = aws_resources.iter()
+            .filter(|r| r.name.starts_with("data."))
+            .count();
+
+        println!("       ├─ From modules: {}", module_aws_count);
+        println!("       ├─ From data sources: {}", data_aws_count);
+        println!("       └─ Direct resources: {}", aws_resources.len() - module_aws_count - data_aws_count);
+
+        // Generate DOT graph for visualization
+        let output_dot = generate_dot_graph(
+            &graph,
+            "complex-modules-test",
+            "TB",
+            &cache_dir,
+            &temp_graph_dir,
+            128,
+            "#2D3436"
+        ).expect("Failed to generate dot graph");
+
+        // Write the generated DOT file for inspection
+        let dot_output_path = output_dir.join("complex-modules-test.dot");
+        fs::write(&dot_output_path, &output_dot)
+            .expect("Failed to write DOT output");
+
+        println!("\n  📝 Generated Files:");
+        println!("     DOT file: {}", dot_output_path.display());
+
+        // Generate PNG diagram
+        let png_output = output_dir.join("complex-modules-test-visual-regression.png");
+        let png_result = execute_dot_command(
+            &output_dot,
+            "png",
+            png_output.to_str().unwrap()
+        );
+
+        if png_result.is_ok() {
+            println!("     PNG diagram: {}", png_output.display());
+        } else {
+            println!("     ⚠ PNG generation skipped (GraphViz not available)");
+        }
+
+        // Generate SVG diagram (better for inspection)
+        let svg_output = output_dir.join("complex-modules-test-visual-regression.svg");
+        let svg_result = execute_dot_command(
+            &output_dot,
+            "svg",
+            svg_output.to_str().unwrap()
+        );
+
+        if svg_result.is_ok() {
+            println!("     SVG diagram: {}", svg_output.display());
+        } else {
+            println!("     ⚠ SVG generation skipped (GraphViz not available)");
+        }
+
+        println!("\n  👀 Visual Inspection:");
+        println!("     Open the generated diagrams to verify:");
+        println!("     • All module resources are visible (not filtered out)");
+        println!("     • Data sources are included and properly typed");
+        println!("     • Nested modules (module.app.module.asg) are handled correctly");
+        println!("     • Edges connect resources properly");
+        println!("     • Icons are used (if available) or styled boxes as fallback");
+
+        println!("\n╚══════════════════════════════════════════════════════════════╝\n");
+
+        // Assertions to ensure the test is meaningful
+        assert!(
+            graph.resources.len() >= 30,
+            "Complex test should have at least 30 resources, got {}",
+            graph.resources.len()
+        );
+
+        assert!(
+            module_resources >= 15,
+            "Should have at least 15 module resources, got {}",
+            module_resources
+        );
+
+        assert!(
+            data_sources >= 3,
+            "Should have at least 3 data sources, got {}",
+            data_sources
+        );
+
+        assert!(
+            aws_resources.len() >= 25,
+            "After filtering, should have at least 25 AWS resources, got {}. \
+             This indicates module/data resources are being filtered out!",
+            aws_resources.len()
+        );
+
+        assert!(
+            module_aws_count >= 15,
+            "Should have at least 15 AWS resources from modules after filtering, got {}. \
+             This indicates module resources are being incorrectly filtered!",
+            module_aws_count
+        );
+
+        assert!(
+            data_aws_count >= 3,
+            "Should have at least 3 AWS resources from data sources after filtering, got {}. \
+             This indicates data sources are being incorrectly filtered!",
+            data_aws_count
+        );
+
+        // Verify edges are present in output
+        let edge_count = output_dot.matches("->").count();
+        assert!(
+            edge_count >= 30,
+            "Expected at least 30 edges in output, found {}",
+            edge_count
+        );
+    }
 }

@@ -1,0 +1,132 @@
+digraph {
+	compound = "true"
+	newrank = "true"
+	subgraph "root" {
+		"[root] provider[\"registry.terraform.io/hashicorp/aws\"]" [label = "provider[\"registry.terraform.io/hashicorp/aws\"]", shape = "diamond"]
+
+		// VPC Module Resources
+		"[root] module.networking.aws_vpc.main (expand)" [label = "module.networking.aws_vpc.main", shape = "box"]
+		"[root] module.networking.aws_subnet.public_a (expand)" [label = "module.networking.aws_subnet.public_a", shape = "box"]
+		"[root] module.networking.aws_subnet.public_b (expand)" [label = "module.networking.aws_subnet.public_b", shape = "box"]
+		"[root] module.networking.aws_subnet.private_a (expand)" [label = "module.networking.aws_subnet.private_a", shape = "box"]
+		"[root] module.networking.aws_subnet.private_b (expand)" [label = "module.networking.aws_subnet.private_b", shape = "box"]
+		"[root] module.networking.aws_security_group.alb (expand)" [label = "module.networking.aws_security_group.alb", shape = "box"]
+		"[root] module.networking.aws_security_group.app (expand)" [label = "module.networking.aws_security_group.app", shape = "box"]
+
+		// Load Balancer Module Resources
+		"[root] module.alb.aws_lb.main (expand)" [label = "module.alb.aws_lb.main", shape = "box"]
+		"[root] module.alb.aws_lb_target_group.app (expand)" [label = "module.alb.aws_lb_target_group.app", shape = "box"]
+
+		// Compute Module Resources with Nested Modules
+		"[root] module.app.module.asg.aws_autoscaling_group.web (expand)" [label = "module.app.module.asg.aws_autoscaling_group.web", shape = "box"]
+		"[root] module.app.module.asg.aws_launch_template.web (expand)" [label = "module.app.module.asg.aws_launch_template.web", shape = "box"]
+
+		// Data Sources for AMI and Availability Zones
+		"[root] data.aws_ami.amazon_linux_2 (expand)" [label = "data.aws_ami.amazon_linux_2", shape = "box"]
+		"[root] data.aws_availability_zones.available (expand)" [label = "data.aws_availability_zones.available", shape = "box"]
+
+		// Database Module Resources
+		"[root] module.database.aws_db_instance.postgres (expand)" [label = "module.database.aws_db_instance.postgres", shape = "box"]
+		"[root] module.database.aws_db_subnet_group.main (expand)" [label = "module.database.aws_db_subnet_group.main", shape = "box"]
+		"[root] module.database.aws_security_group.rds (expand)" [label = "module.database.aws_security_group.rds", shape = "box"]
+
+		// Storage Resources
+		"[root] aws_s3_bucket.assets (expand)" [label = "aws_s3_bucket.assets", shape = "box"]
+		"[root] module.cdn.aws_cloudfront_distribution.main (expand)" [label = "module.cdn.aws_cloudfront_distribution.main", shape = "box"]
+
+		// Caching Module
+		"[root] module.cache.aws_elasticache_cluster.redis (expand)" [label = "module.cache.aws_elasticache_cluster.redis", shape = "box"]
+		"[root] module.cache.aws_elasticache_subnet_group.main (expand)" [label = "module.cache.aws_elasticache_subnet_group.main", shape = "box"]
+
+		// Lambda Functions with Data Source
+		"[root] data.aws_iam_policy_document.lambda_assume_role (expand)" [label = "data.aws_iam_policy_document.lambda_assume_role", shape = "box"]
+		"[root] module.lambda.aws_lambda_function.api_handler (expand)" [label = "module.lambda.aws_lambda_function.api_handler", shape = "box"]
+		"[root] module.lambda.aws_iam_role.lambda_exec (expand)" [label = "module.lambda.aws_iam_role.lambda_exec", shape = "box"]
+
+		// API Gateway
+		"[root] module.api.aws_api_gateway_rest_api.main (expand)" [label = "module.api.aws_api_gateway_rest_api.main", shape = "box"]
+
+		// Messaging
+		"[root] aws_sqs_queue.jobs (expand)" [label = "aws_sqs_queue.jobs", shape = "box"]
+		"[root] aws_sns_topic.alerts (expand)" [label = "aws_sns_topic.alerts", shape = "box"]
+
+		// KMS for encryption
+		"[root] module.security.aws_kms_key.main (expand)" [label = "module.security.aws_kms_key.main", shape = "box"]
+
+		// Route53 DNS
+		"[root] data.aws_route53_zone.main (expand)" [label = "data.aws_route53_zone.main", shape = "box"]
+		"[root] module.dns.aws_route53_record.app (expand)" [label = "module.dns.aws_route53_record.app", shape = "box"]
+
+		// DynamoDB Table
+		"[root] aws_dynamodb_table.sessions (expand)" [label = "aws_dynamodb_table.sessions", shape = "box"]
+
+		// Provider dependencies
+		"[root] module.networking.aws_vpc.main (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+		"[root] aws_s3_bucket.assets (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+		"[root] aws_sqs_queue.jobs (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+		"[root] aws_sns_topic.alerts (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+		"[root] aws_dynamodb_table.sessions (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+
+		// Data source dependencies
+		"[root] data.aws_ami.amazon_linux_2 (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+		"[root] data.aws_availability_zones.available (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+		"[root] data.aws_iam_policy_document.lambda_assume_role (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+		"[root] data.aws_route53_zone.main (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+
+		// VPC dependencies
+		"[root] module.networking.aws_subnet.public_a (expand)" -> "[root] module.networking.aws_vpc.main (expand)"
+		"[root] module.networking.aws_subnet.public_b (expand)" -> "[root] module.networking.aws_vpc.main (expand)"
+		"[root] module.networking.aws_subnet.private_a (expand)" -> "[root] module.networking.aws_vpc.main (expand)"
+		"[root] module.networking.aws_subnet.private_b (expand)" -> "[root] module.networking.aws_vpc.main (expand)"
+		"[root] module.networking.aws_security_group.alb (expand)" -> "[root] module.networking.aws_vpc.main (expand)"
+		"[root] module.networking.aws_security_group.app (expand)" -> "[root] module.networking.aws_vpc.main (expand)"
+
+		// ALB dependencies
+		"[root] module.alb.aws_lb.main (expand)" -> "[root] module.networking.aws_subnet.public_a (expand)"
+		"[root] module.alb.aws_lb.main (expand)" -> "[root] module.networking.aws_subnet.public_b (expand)"
+		"[root] module.alb.aws_lb.main (expand)" -> "[root] module.networking.aws_security_group.alb (expand)"
+		"[root] module.alb.aws_lb_target_group.app (expand)" -> "[root] module.networking.aws_vpc.main (expand)"
+
+		// Auto Scaling Group dependencies (nested module)
+		"[root] module.app.module.asg.aws_launch_template.web (expand)" -> "[root] data.aws_ami.amazon_linux_2 (expand)"
+		"[root] module.app.module.asg.aws_launch_template.web (expand)" -> "[root] module.networking.aws_security_group.app (expand)"
+		"[root] module.app.module.asg.aws_autoscaling_group.web (expand)" -> "[root] module.app.module.asg.aws_launch_template.web (expand)"
+		"[root] module.app.module.asg.aws_autoscaling_group.web (expand)" -> "[root] module.networking.aws_subnet.private_a (expand)"
+		"[root] module.app.module.asg.aws_autoscaling_group.web (expand)" -> "[root] module.networking.aws_subnet.private_b (expand)"
+		"[root] module.app.module.asg.aws_autoscaling_group.web (expand)" -> "[root] module.alb.aws_lb_target_group.app (expand)"
+
+		// Database dependencies
+		"[root] module.database.aws_db_subnet_group.main (expand)" -> "[root] module.networking.aws_subnet.private_a (expand)"
+		"[root] module.database.aws_db_subnet_group.main (expand)" -> "[root] module.networking.aws_subnet.private_b (expand)"
+		"[root] module.database.aws_security_group.rds (expand)" -> "[root] module.networking.aws_vpc.main (expand)"
+		"[root] module.database.aws_db_instance.postgres (expand)" -> "[root] module.database.aws_db_subnet_group.main (expand)"
+		"[root] module.database.aws_db_instance.postgres (expand)" -> "[root] module.database.aws_security_group.rds (expand)"
+		"[root] module.database.aws_db_instance.postgres (expand)" -> "[root] module.security.aws_kms_key.main (expand)"
+
+		// CloudFront dependencies
+		"[root] module.cdn.aws_cloudfront_distribution.main (expand)" -> "[root] aws_s3_bucket.assets (expand)"
+
+		// ElastiCache dependencies
+		"[root] module.cache.aws_elasticache_subnet_group.main (expand)" -> "[root] module.networking.aws_subnet.private_a (expand)"
+		"[root] module.cache.aws_elasticache_subnet_group.main (expand)" -> "[root] module.networking.aws_subnet.private_b (expand)"
+		"[root] module.cache.aws_elasticache_cluster.redis (expand)" -> "[root] module.cache.aws_elasticache_subnet_group.main (expand)"
+
+		// Lambda dependencies
+		"[root] module.lambda.aws_iam_role.lambda_exec (expand)" -> "[root] data.aws_iam_policy_document.lambda_assume_role (expand)"
+		"[root] module.lambda.aws_lambda_function.api_handler (expand)" -> "[root] module.lambda.aws_iam_role.lambda_exec (expand)"
+		"[root] module.lambda.aws_lambda_function.api_handler (expand)" -> "[root] module.networking.aws_subnet.private_a (expand)"
+		"[root] module.lambda.aws_lambda_function.api_handler (expand)" -> "[root] module.networking.aws_security_group.app (expand)"
+		"[root] module.lambda.aws_lambda_function.api_handler (expand)" -> "[root] aws_sqs_queue.jobs (expand)"
+		"[root] module.lambda.aws_lambda_function.api_handler (expand)" -> "[root] aws_dynamodb_table.sessions (expand)"
+
+		// API Gateway dependencies
+		"[root] module.api.aws_api_gateway_rest_api.main (expand)" -> "[root] module.lambda.aws_lambda_function.api_handler (expand)"
+
+		// Route53 dependencies
+		"[root] module.dns.aws_route53_record.app (expand)" -> "[root] data.aws_route53_zone.main (expand)"
+		"[root] module.dns.aws_route53_record.app (expand)" -> "[root] module.alb.aws_lb.main (expand)"
+
+		// Security dependencies
+		"[root] module.security.aws_kms_key.main (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+	}
+}
