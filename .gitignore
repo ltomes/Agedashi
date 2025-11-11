@@ -25,10 +25,12 @@ override.tf.json
 
 # But keep test fixtures and samples
 !test/*.dot
-!samples/*.png
-!samples/*.svg
-!samples/*.pdf
-!samples/*.jpg
+!samples/*-tb.png
+!samples/*-tb.svg
+!samples/*-tb.pdf
+!samples/*-lr.png
+!samples/*-lr.svg
+!samples/*-lr.pdf
 
 # IDE
 .vscode/
@@ -49,11 +51,11 @@ ENV/
 .venv
 
 # Examples output
-examples/*.png
-examples/*.svg
-examples/*.pdf
-examples/*.jpg
-examples/.terraform/
-examples/*.tfstate
-examples/*.tfstate.backup
-examples/lambda.zip
+test/examples/*.png
+test/examples/*.svg
+test/examples/*.pdf
+test/examples/*.jpg
+test/examples/.terraform/
+test/examples/*.tfstate
+test/examples/*.tfstate.backup
+test/examples/lambda.zip

@@ -1,0 +1,46 @@
+digraph {
+	compound = "true"
+	newrank = "true"
+	subgraph "root" {
+		"[root] aws_autoscaling_group.asg (expand)" [label = "aws_autoscaling_group.asg",shape = "box"]
+		"[root] aws_cloudfront_distribution.cdn (expand)" [label = "aws_cloudfront_distribution.cdn",shape = "box"]
+		"[root] aws_dynamodb_table.table (expand)" [label = "aws_dynamodb_table.table",shape = "box"]
+		"[root] aws_ebs_volume.volume (expand)" [label = "aws_ebs_volume.volume",shape = "box"]
+		"[root] aws_ec2_instance.instance (expand)" [label = "aws_ec2_instance.instance",shape = "box"]
+		"[root] aws_ecs_cluster.cluster (expand)" [label = "aws_ecs_cluster.cluster",shape = "box"]
+		"[root] aws_eks_cluster.cluster (expand)" [label = "aws_eks_cluster.cluster",shape = "box"]
+		"[root] aws_elasticache_cluster.cache (expand)" [label = "aws_elasticache_cluster.cache",shape = "box"]
+		"[root] aws_elb.loadbalancer (expand)" [label = "aws_elb.loadbalancer",shape = "box"]
+		"[root] aws_iam_role.role (expand)" [label = "aws_iam_role.role",shape = "box"]
+		"[root] aws_api_gateway_rest_api.api (expand)" [label = "aws_api_gateway_rest_api.api",shape = "box"]
+		"[root] aws_kinesis_stream.stream (expand)" [label = "aws_kinesis_stream.stream",shape = "box"]
+		"[root] aws_kms_key.key (expand)" [label = "aws_kms_key.key",shape = "box"]
+		"[root] aws_lambda_function.function (expand)" [label = "aws_lambda_function.function",shape = "box"]
+		"[root] aws_rds_instance.database (expand)" [label = "aws_rds_instance.database",shape = "box"]
+		"[root] aws_redshift_cluster.warehouse (expand)" [label = "aws_redshift_cluster.warehouse",shape = "box"]
+		"[root] aws_route53_zone.zone (expand)" [label = "aws_route53_zone.zone",shape = "box"]
+		"[root] aws_s3_bucket.bucket (expand)" [label = "aws_s3_bucket.bucket",shape = "box"]
+		"[root] aws_sns_topic.topic (expand)" [label = "aws_sns_topic.topic",shape = "box"]
+		"[root] aws_sqs_queue.queue (expand)" [label = "aws_sqs_queue.queue",shape = "box"]
+		"[root] aws_subnet.subnet (expand)" [label = "aws_subnet.subnet",shape = "box"]
+		"[root] aws_vpc.main (expand)" [label = "aws_vpc.main",shape = "box"]
+		"[root] aws_ec2_instance.instance (expand)" -> "[root] aws_vpc.main (expand)"
+		"[root] aws_ec2_instance.instance (expand)" -> "[root] aws_subnet.subnet (expand)"
+		"[root] aws_rds_instance.database (expand)" -> "[root] aws_vpc.main (expand)"
+		"[root] aws_lambda_function.function (expand)" -> "[root] aws_iam_role.role (expand)"
+		"[root] aws_lambda_function.function (expand)" -> "[root] aws_subnet.subnet (expand)"
+		"[root] aws_ecs_cluster.cluster (expand)" -> "[root] aws_vpc.main (expand)"
+		"[root] aws_eks_cluster.cluster (expand)" -> "[root] aws_subnet.subnet (expand)"
+		"[root] aws_elasticache_cluster.cache (expand)" -> "[root] aws_subnet.subnet (expand)"
+		"[root] aws_elb.loadbalancer (expand)" -> "[root] aws_subnet.subnet (expand)"
+		"[root] aws_cloudfront_distribution.cdn (expand)" -> "[root] aws_s3_bucket.bucket (expand)"
+		"[root] aws_api_gateway_rest_api.api (expand)" -> "[root] aws_lambda_function.function (expand)"
+		"[root] aws_sns_topic.topic (expand)" -> "[root] aws_lambda_function.function (expand)"
+		"[root] aws_sqs_queue.queue (expand)" -> "[root] aws_lambda_function.function (expand)"
+		"[root] aws_kinesis_stream.stream (expand)" -> "[root] aws_lambda_function.function (expand)"
+		"[root] aws_ebs_volume.volume (expand)" -> "[root] aws_ec2_instance.instance (expand)"
+		"[root] aws_subnet.subnet (expand)" -> "[root] aws_vpc.main (expand)"
+		"[root] aws_redshift_cluster.warehouse (expand)" -> "[root] aws_subnet.subnet (expand)"
+		"[root] aws_autoscaling_group.asg (expand)" -> "[root] aws_subnet.subnet (expand)"
+	}
+}

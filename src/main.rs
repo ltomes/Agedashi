@@ -27,6 +27,10 @@ struct Cli {
     /// Show graph direction (TB=top-to-bottom, LR=left-to-right)
     #[arg(short, long, default_value = "TB")]
     direction: String,
+
+    /// Color for edges and text (hex color code)
+    #[arg(short, long, default_value = "#2D3436")]
+    color: String,
 }
 
 #[derive(Debug, Clone)]
@@ -259,7 +263,8 @@ fn get_icon_search_pattern(name: &str) -> Option<&'static str> {
         // Storage
         "s3" => Some("Amazon-Simple-Storage-Service_64"),
         "ebs" => Some("Amazon-Elastic-Block-Store_64"),
-        "efs" => Some("Amazon-Elastic-File-System_64"),
+        // Note: EFS icon not available in bundled AWS Architecture Icons archive
+        // "efs" => Some("Amazon-Elastic-File-System_64"),
 
         // Security
         "iam" => Some("AWS-Identity-and-Access-Management_64"),
@@ -284,6 +289,7 @@ fn extract_icons_from_7z(archive_path: &Path, cache_dir: &Path) -> Result<usize>
         "rds", "dynamodb", "elasticache", "redshift",
         "elb", "vpc", "subnet", "route53", "cloudfront", "apigateway",
         "s3", "ebs",
+        // Note: EFS icon not available in bundled AWS Architecture Icons archive
         "iam", "kms",
         "sns", "sqs",
         "kinesis",
@@ -354,6 +360,7 @@ fn download_icons_as_needed(cache_dir: &Path) -> Result<()> {
         "rds", "dynamodb", "elasticache", "redshift",
         "elb", "vpc", "subnet", "route53", "cloudfront", "apigateway",
         "s3", "ebs",
+        // Note: EFS icon not available in bundled AWS Architecture Icons archive
         "iam", "kms",
         "sns", "sqs",
         "kinesis",
@@ -478,7 +485,8 @@ fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
         // Storage
         t if t.contains("aws_s3") => ("s3", "S3", "#7AA116", "🪣"),
         t if t.contains("aws_ebs") => ("ebs", "EBS", "#7AA116", "💽"),
-        t if t.contains("aws_efs") => ("efs", "EFS", "#7AA116", "📁"),
+        // Note: EFS icon not available in bundled AWS Architecture Icons
+        // t if t.contains("aws_efs") => ("efs", "EFS", "#7AA116", "📁"),
 
         // Security
         t if t.contains("aws_iam") => ("iam", "IAM", "#DD344C", "🔑"),
@@ -496,14 +504,14 @@ fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
     }
 }
 
-fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path, temp_dir: &Path, icon_size: u32) -> Result<String> {
+fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path, temp_dir: &Path, icon_size: u32, color: &str) -> Result<String> {
     let mut dot = String::new();
 
     // Graph header with modern styling
     dot.push_str(&format!("digraph \"{}\" {{\n", name));
     dot.push_str("    graph [fontname=\"Arial\", fontsize=14, bgcolor=\"transparent\", pad=\"0.5\"];\n");
     dot.push_str("    node [fontname=\"Arial\", fontsize=11];\n");
-    dot.push_str("    edge [fontname=\"Arial\", fontsize=10, color=\"#2D3436\", penwidth=2.0, arrowsize=0.7];\n");
+    dot.push_str(&format!("    edge [fontname=\"Arial\", fontsize=10, color=\"{}\", penwidth=2.0, arrowsize=0.7];\n", color));
     dot.push_str(&format!("    rankdir={};\n", direction));
     dot.push_str("    splines=ortho;\n");
     dot.push_str("    nodesep=1.0;\n");
@@ -532,12 +540,12 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
             match convert_svg_to_png(&svg_path, &png_path, icon_size) {
                 Ok(_) => {
                     let icon_path_str = png_path.to_string_lossy();
-                    // GraphViz: HTML-like label with image in table cell and grey text below
+                    // GraphViz: HTML-like label with image in table cell and colored text below
                     // Set FIXEDSIZE on TD to constrain image proportionally for PDF output
-                    // Text color matches the connecting lines (#2D3436)
+                    // Text color matches the edge color
                     let html_label = format!(
-                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"#2D3436\">{}</FONT></TD></TR></TABLE>>",
-                        icon_size, icon_size, icon_path_str, resource.label
+                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
+                        icon_size, icon_size, icon_path_str, color, resource.label
                     );
                     dot.push_str(&format!(
                         "    {} [label={}, shape=plaintext, fontsize=10];\n",
@@ -679,7 +687,7 @@ fn main() -> Result<()> {
     // Generate DOT graph with lazy icon conversion
     // Icons are converted from SVG to PNG at 128x128
     // For SVG output, the generated SVG is post-processed to embed PNGs as base64
-    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, temp_dir.path(), 128)?;
+    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, temp_dir.path(), 128, &cli.color)?;
 
     // Output file path
     let output_file = format!("{}.{}", cli.name, cli.output);
@@ -733,4 +741,254 @@ fn embed_images_in_svg(svg_file: &str) -> Result<()> {
         .context(format!("Failed to write modified SVG: {}", svg_file))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_all_aws_resource_icons() {
+        // This test validates that we can resolve icons for all AWS resource types
+        // that are defined in our icon mapping. It ensures:
+        // 1. Icons can be extracted from the bundled archive
+        // 2. SVG to PNG conversion works correctly
+        // 3. All resource types in the test fixture are handled
+
+        // Create temporary directories for cache and output
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let cache_dir = temp_dir.path().join("cache");
+        fs::create_dir_all(&cache_dir).expect("Failed to create cache dir");
+
+        // Ensure icons are available (extract if needed)
+        let bundled_icons = get_bundled_icons_path();
+        if bundled_icons.exists() {
+            let extracted = extract_icons_from_7z(&bundled_icons, &cache_dir)
+                .expect("Failed to extract icons");
+            println!("Extracted {} icons from archive", extracted);
+        } else {
+            panic!("Bundled icons not found at {:?}", bundled_icons);
+        }
+
+        // Parse the test fixture with all AWS resource types
+        let test_dot_path = "test/all-aws-resources.dot";
+        let dot_content = fs::read_to_string(test_dot_path)
+            .expect(&format!("Failed to read test fixture: {}", test_dot_path));
+
+        let graph = parse_dot_graph(&dot_content)
+            .expect("Failed to parse test fixture");
+
+        // Expected resource types that should have icons
+        let expected_icon_types = vec![
+            "autoscaling", "cloudfront", "dynamodb", "ebs", "ec2", "ecs",
+            "eks", "elasticache", "elb", "iam", "apigateway",
+            "kinesis", "kms", "lambda", "rds", "redshift", "route53",
+            "s3", "sns", "sqs", "subnet", "vpc"
+        ];
+
+        // Track which resource types we found and their status
+        let mut found_types = std::collections::HashSet::new();
+        let mut successful_icons = Vec::new();
+        let mut failed_icons = Vec::new();
+        let mut missing_icons = Vec::new();
+
+        // Filter AWS resources only (same as generate_dot_graph)
+        let aws_resources: Vec<_> = graph.resources.iter()
+            .filter(|r| r.resource_type.contains("aws_"))
+            .collect();
+
+        // Try to resolve an icon for each resource in the graph
+        for resource in &aws_resources {
+            let (icon_name, _service_name, _color, _fallback_emoji) = get_service_info(&resource.resource_type);
+            found_types.insert(icon_name.to_string());
+
+            // Check if we have a cached SVG icon
+            let svg_path = cache_dir.join(format!("{}.svg", icon_name));
+
+            if svg_path.exists() && !icon_name.is_empty() {
+                // Try to convert SVG to PNG (same as generate_dot_graph)
+                let png_path = temp_dir.path().join(format!("{}.png", icon_name));
+
+                match convert_svg_to_png(&svg_path, &png_path, 128) {
+                    Ok(_) => {
+                        successful_icons.push(icon_name.to_string());
+                    }
+                    Err(e) => {
+                        failed_icons.push(format!("{} (conversion failed: {})", icon_name, e));
+                    }
+                }
+            } else if !icon_name.is_empty() {
+                missing_icons.push(icon_name.to_string());
+            }
+        }
+
+        // Report results
+        println!("\n═══════════════════════════════════════════════════");
+        println!("Icon Resolution Test Results");
+        println!("═══════════════════════════════════════════════════");
+        println!("  Resources tested: {}", aws_resources.len());
+        println!("  Unique icon types: {}", found_types.len());
+        println!("  Expected types: {}", expected_icon_types.len());
+        println!("  ✓ Successful: {}", successful_icons.len());
+        println!("  ✗ Missing from archive: {}", missing_icons.len());
+        println!("  ✗ Conversion failures: {}", failed_icons.len());
+
+        if !missing_icons.is_empty() {
+            println!("\n  Icons not found in archive:");
+            for icon in &missing_icons {
+                println!("    - {}", icon);
+            }
+            println!("\n  Note: These icons may not exist in the bundled AWS Architecture Icons archive,");
+            println!("        or the search pattern may need adjustment.");
+        }
+
+        if !failed_icons.is_empty() {
+            println!("\n  Conversion failures (CRITICAL):");
+            for icon in &failed_icons {
+                println!("    - {}", icon);
+            }
+        }
+
+        // Check that all expected types were covered in test fixture
+        let mut missing_from_fixture = Vec::new();
+        for expected in &expected_icon_types {
+            if !found_types.contains(*expected) {
+                missing_from_fixture.push(*expected);
+            }
+        }
+
+        if !missing_from_fixture.is_empty() {
+            println!("\n  Warning: Expected icon types not in test fixture:");
+            for missing in &missing_from_fixture {
+                println!("    - {}", missing);
+            }
+        }
+
+        println!("═══════════════════════════════════════════════════\n");
+
+        // Test passes if:
+        // 1. No conversion failures (critical - code is broken)
+        // 2. At least 90% of icons are available (allows for archive changes)
+        let success_rate = successful_icons.len() as f32 / aws_resources.len() as f32;
+
+        assert!(
+            failed_icons.is_empty(),
+            "Icon conversion failures detected. This indicates a bug in the code."
+        );
+
+        assert!(
+            success_rate >= 0.9,
+            "Only {:.1}% of icons available (expected >= 90%). Missing: {:?}",
+            success_rate * 100.0,
+            missing_icons
+        );
+    }
+
+    #[test]
+    fn test_document_missing_icon_coverage() {
+        // This test compares all AWS provider resources against our icon mappings
+        // to identify which resources don't have icons. This helps track coverage
+        // and prioritize which icons to add.
+
+        // Read the AWS provider resources list
+        let resources_file = "test/aws-provider-resources.txt";
+        let resources_content = match fs::read_to_string(resources_file) {
+            Ok(content) => content,
+            Err(_) => {
+                println!("\nNote: Run scripts/list-aws-resources.sh to generate {}", resources_file);
+                println!("Skipping test (resource list not available)");
+                return;
+            }
+        };
+
+        let all_resources: Vec<&str> = resources_content
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .collect();
+
+        // Track resources by icon availability
+        let mut resources_with_icons = std::collections::HashMap::new();
+        let mut resources_without_icons = Vec::new();
+
+        for resource_type in &all_resources {
+            let (icon_name, service_name, _color, _emoji) = get_service_info(resource_type);
+
+            if !icon_name.is_empty() {
+                resources_with_icons
+                    .entry(icon_name)
+                    .or_insert_with(Vec::new)
+                    .push(*resource_type);
+            } else {
+                resources_without_icons.push(*resource_type);
+            }
+        }
+
+        // Report results
+        println!("\n═══════════════════════════════════════════════════");
+        println!("AWS Provider Icon Coverage Report");
+        println!("═══════════════════════════════════════════════════");
+        println!("Total AWS resources in provider: {}", all_resources.len());
+        println!("Resources with icon mappings: {}", all_resources.len() - resources_without_icons.len());
+        println!("Resources without icons: {}", resources_without_icons.len());
+        println!("Coverage: {:.1}%",
+            ((all_resources.len() - resources_without_icons.len()) as f32 / all_resources.len() as f32) * 100.0
+        );
+
+        println!("\n─────────────────────────────────────────────────");
+        println!("Icon Mappings (grouped by icon):");
+        println!("─────────────────────────────────────────────────");
+
+        let mut icon_names: Vec<_> = resources_with_icons.keys().collect();
+        icon_names.sort();
+
+        for icon_name in icon_names {
+            let resources = resources_with_icons.get(icon_name).unwrap();
+            println!("\n{} ({} resources):", icon_name, resources.len());
+            for resource in resources.iter().take(5) {
+                println!("  • {}", resource);
+            }
+            if resources.len() > 5 {
+                println!("  ... and {} more", resources.len() - 5);
+            }
+        }
+
+        println!("\n─────────────────────────────────────────────────");
+        println!("Top 20 Resources Without Icons:");
+        println!("─────────────────────────────────────────────────");
+
+        // Group by service prefix to identify patterns
+        let mut service_groups: std::collections::HashMap<String, Vec<&str>> = std::collections::HashMap::new();
+        for resource in &resources_without_icons {
+            // Extract service prefix (e.g., "aws_rds" from "aws_rds_cluster")
+            let parts: Vec<&str> = resource.split('_').collect();
+            let prefix = if parts.len() >= 2 {
+                format!("{}_{}", parts[0], parts[1])
+            } else {
+                resource.to_string()
+            };
+            service_groups
+                .entry(prefix)
+                .or_insert_with(Vec::new)
+                .push(*resource);
+        }
+
+        let mut sorted_groups: Vec<_> = service_groups.iter().collect();
+        sorted_groups.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+
+        for (prefix, resources) in sorted_groups.iter().take(20) {
+            println!("\n{} ({} resources):", prefix, resources.len());
+            for resource in resources.iter().take(3) {
+                println!("  • {}", resource);
+            }
+            if resources.len() > 3 {
+                println!("  ... and {} more", resources.len() - 3);
+            }
+        }
+
+        println!("\n═══════════════════════════════════════════════════\n");
+
+        // This test always passes - it's informational only
+        // We don't require 100% coverage since many resources are rarely used
+        assert!(true, "Icon coverage documentation generated successfully");
+    }
 }

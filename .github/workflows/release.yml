@@ -85,11 +85,27 @@ jobs:
         run: |
           sed -i "s/^version = \".*\"/version = \"${{ steps.version.outputs.version }}\"/" Cargo.toml
 
+      - name: Install GraphViz
+        run: sudo apt-get update && sudo apt-get install -y graphviz
+
       - name: Build release binary
         run: cargo build --release
 
-      - name: Create release archive
+      - name: Generate sample diagrams
         run: |
+          mkdir -p release-samples
+          # Generate TB (top-to-bottom) diagrams
+          cat test/sample-graph.dot | ./target/release/agedashi --output png --name release-samples/sample-infrastructure-tb --direction TB
+          cat test/sample-graph.dot | ./target/release/agedashi --output svg --name release-samples/sample-infrastructure-tb --direction TB
+          cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name release-samples/sample-infrastructure-tb --direction TB
+          # Generate LR (left-to-right) diagrams
+          cat test/sample-graph.dot | ./target/release/agedashi --output png --name release-samples/sample-infrastructure-lr --direction LR
+          cat test/sample-graph.dot | ./target/release/agedashi --output svg --name release-samples/sample-infrastructure-lr --direction LR
+          cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name release-samples/sample-infrastructure-lr --direction LR
+
+      - name: Create release archives
+        run: |
+          # Create binary archive
           mkdir -p release
           cp target/release/agedashi release/
           cp README.md LICENSE release/ 2>/dev/null || true
@@ -97,6 +113,12 @@ jobs:
           tar -czf agedashi-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz *
           cd ..
           mv release/agedashi-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz .
+
+          # Create samples archive
+          cd release-samples
+          tar -czf agedashi-samples-${{ steps.version.outputs.version }}.tar.gz *
+          cd ..
+          mv release-samples/agedashi-samples-${{ steps.version.outputs.version }}.tar.gz .
 
       - name: Commit version bump
         if: github.ref == 'refs/heads/main'
@@ -135,6 +157,7 @@ jobs:
           prerelease: ${{ steps.version.outputs.is_prerelease }}
           files: |
             agedashi-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz
+            agedashi-samples-${{ steps.version.outputs.version }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

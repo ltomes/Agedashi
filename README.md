@@ -12,11 +12,17 @@ Agedashi is a Rust command-line tool that reads Terraform/OpenTofu graph output 
 
 ## Sample Output
 
-Here's an example of what Agedashi generates from a Terraform graph:
+Here's what Agedashi generates from a Terraform graph in different layouts:
 
-![Sample Infrastructure Diagram](samples/sample-infrastructure.png)
+### Top-to-Bottom Layout (Default)
 
-The diagram shows AWS resources with official AWS Architecture Icons, clean layouts, and automatic relationship mapping. Icons have rounded corners for a modern appearance, and resource names appear below each icon.
+![Sample Infrastructure Diagram - TB](samples/sample-infrastructure-tb.png)
+
+### Left-to-Right Layout
+
+![Sample Infrastructure Diagram - LR](samples/sample-infrastructure-lr.png)
+
+The diagrams show AWS resources with official AWS Architecture Icons, clean layouts, and automatic relationship mapping. Icons have rounded corners for a modern appearance, and resource names appear below each icon.
 
 ## Features
 
@@ -49,7 +55,7 @@ The diagram shows AWS resources with official AWS Architecture Icons, clean layo
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/agedashi.git
+git clone https://github.com/ltomes/Agedashi.git
 cd agedashi
 cargo build --release
 sudo cp target/release/agedashi /usr/local/bin/
@@ -192,7 +198,7 @@ The core logic is written in Rust for speed and reliability, with GraphViz handl
 
 ## Examples Directory
 
-Check out the `examples/` directory for sample Terraform configurations:
+Check out the `test/examples/` directory for sample Terraform configurations:
 
 - `simple-aws.tf` - Basic AWS setup with VPC, EC2, RDS, and S3
 - `complex-aws.tf` - Advanced multi-tier architecture with 20+ services
@@ -200,9 +206,9 @@ Check out the `examples/` directory for sample Terraform configurations:
 To test with examples:
 
 ```bash
-cd examples
+cd test/examples
 tofu init
-tofu graph | ../target/release/agedashi --output png --name example
+tofu graph | ../../target/release/agedashi --output png --name example
 ```
 
 ## Troubleshooting
