@@ -480,6 +480,7 @@ fn parse_dot_graph(dot_content: &str) -> Result<TerraformGraph> {
 
 fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
     // Returns (icon_name, service_name, color, fallback_emoji)
+    // Colors are AWS brand colors for visual consistency
     match resource_type {
         // Compute
         t if t.contains("aws_instance") => ("ec2", "EC2", "#FF9900", "💻"),
@@ -487,6 +488,7 @@ fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
         t if t.contains("aws_ecs") => ("ecs", "ECS", "#FF9900", "🐳"),
         t if t.contains("aws_eks") => ("eks", "EKS", "#FF9900", "☸"),
         t if t.contains("aws_autoscaling") => ("autoscaling", "AutoScaling", "#FF9900", "📈"),
+        t if t.contains("aws_launch_template") => ("ec2", "LaunchTemplate", "#FF9900", "📋"),
 
         // Database
         t if t.contains("aws_db_instance") => ("rds", "RDS", "#3B48CC", "🗄"),
@@ -521,8 +523,14 @@ fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
         // Analytics
         t if t.contains("aws_kinesis") => ("kinesis", "Kinesis", "#8C4FFF", "📊"),
 
-        // Default
-        _ => ("", "Service", "#232F3E", "🔧"),
+        // Data Sources - use a distinct color for data/reference resources
+        t if t.contains("aws_ami") => ("", "AMI", "#527FFF", "💿"),
+        t if t.contains("aws_availability_zones") => ("", "AZs", "#527FFF", "🗺"),
+        t if t.contains("aws_caller_identity") => ("", "CallerIdentity", "#527FFF", "👤"),
+        t if t.contains("aws_region") => ("", "Region", "#527FFF", "🌎"),
+
+        // Default - use a medium AWS brand color that works well
+        _ => ("", "Resource", "#146EB4", "📦"),
     }
 }
 
@@ -576,18 +584,20 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
                 }
                 Err(_) => {
                     // Fallback to styled box if conversion fails
+                    // Make square boxes the same visual size as icons for consistency
                     let label = format!("{}\\n{}", service_name, resource.label);
                     dot.push_str(&format!(
-                        "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box, width=1.5, height=1.0];\n",
+                        "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box, width=1.5, height=1.5, fixedsize=true];\n",
                         node_id, label, color
                     ));
                 }
             }
         } else {
             // Fallback to styled box with service name
+            // Make square boxes the same visual size as icons for consistency
             let label = format!("{}\\n{}", service_name, resource.label);
             dot.push_str(&format!(
-                "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box, width=1.5, height=1.0];\n",
+                "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box, width=1.5, height=1.5, fixedsize=true];\n",
                 node_id, label, color
             ));
         }
