@@ -31,8 +31,12 @@ jobs:
         id: version
         run: |
           # Get commits since last tag
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%s")
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"%s")
+          else
+            COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%s")
+          fi
 
           # Determine bump type from conventional commits
           BUMP="patch"
@@ -86,12 +90,14 @@ jobs:
           sed -i "s/^version = \".*\"/version = \"${{ steps.version.outputs.version }}\"/" Cargo.toml
 
       - name: Install GraphViz
+        if: github.ref == 'refs/heads/develop'
         run: sudo apt-get update && sudo apt-get install -y graphviz
 
       - name: Build release binary
         run: cargo build --release
 
       - name: Generate sample diagrams
+        if: github.ref == 'refs/heads/develop'
         run: |
           mkdir -p release-samples
           # Generate TB (top-to-bottom) diagrams
@@ -103,9 +109,8 @@ jobs:
           cat test/sample-graph.dot | ./target/release/agedashi --output svg --name release-samples/sample-infrastructure-lr --direction LR
           cat test/sample-graph.dot | ./target/release/agedashi --output pdf --name release-samples/sample-infrastructure-lr --direction LR
 
-      - name: Create release archives
+      - name: Create binary archive
         run: |
-          # Create binary archive
           mkdir -p release
           cp target/release/agedashi release/
           cp README.md LICENSE release/ 2>/dev/null || true
@@ -114,7 +119,9 @@ jobs:
           cd ..
           mv release/agedashi-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz .
 
-          # Create samples archive
+      - name: Create samples archive
+        if: github.ref == 'refs/heads/develop'
+        run: |
           cd release-samples
           tar -czf agedashi-samples-${{ steps.version.outputs.version }}.tar.gz *
           cd ..
@@ -137,27 +144,42 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          # Try to get the previous tag (before the one we just created)
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
           if [ -z "$LAST_TAG" ]; then
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+            CHANGELOG=$(git log HEAD~1 --pretty=format:"- %s (%h)" --no-merges)
           else
-            CHANGELOG=$(git log $LAST_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
+            CHANGELOG=$(git log $LAST_TAG..HEAD~1 --pretty=format:"- %s (%h)" --no-merges)
           fi
 
           # Save changelog to file to preserve newlines
           echo "$CHANGELOG" > /tmp/changelog.txt
           echo "changelog_file=/tmp/changelog.txt" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release (develop)
+        if: github.ref == 'refs/heads/develop'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.version.outputs.version }}
-          name: ${{ github.ref == 'refs/heads/develop' && format('v{0} (Beta)', steps.version.outputs.version) || format('v{0}', steps.version.outputs.version) }}
+          name: v${{ steps.version.outputs.version }} (Beta)
           body_path: ${{ steps.changelog.outputs.changelog_file }}
-          prerelease: ${{ steps.version.outputs.is_prerelease }}
+          prerelease: true
           files: |
             agedashi-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz
             agedashi-samples-${{ steps.version.outputs.version }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release (main)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body_path: ${{ steps.changelog.outputs.changelog_file }}
+          prerelease: false
+          files: |
+            agedashi-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
