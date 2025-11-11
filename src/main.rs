@@ -485,7 +485,8 @@ fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
         // Storage
         t if t.contains("aws_s3") => ("s3", "S3", "#7AA116", "🪣"),
         t if t.contains("aws_ebs") => ("ebs", "EBS", "#7AA116", "💽"),
-        t if t.contains("aws_efs") => ("efs", "EFS", "#7AA116", "📁"),
+        // Note: EFS icon not available in bundled AWS Architecture Icons
+        // t if t.contains("aws_efs") => ("efs", "EFS", "#7AA116", "📁"),
 
         // Security
         t if t.contains("aws_iam") => ("iam", "IAM", "#DD344C", "🔑"),
@@ -881,5 +882,113 @@ mod tests {
             success_rate * 100.0,
             missing_icons
         );
+    }
+
+    #[test]
+    fn test_document_missing_icon_coverage() {
+        // This test compares all AWS provider resources against our icon mappings
+        // to identify which resources don't have icons. This helps track coverage
+        // and prioritize which icons to add.
+
+        // Read the AWS provider resources list
+        let resources_file = "test/aws-provider-resources.txt";
+        let resources_content = match fs::read_to_string(resources_file) {
+            Ok(content) => content,
+            Err(_) => {
+                println!("\nNote: Run scripts/list-aws-resources.sh to generate {}", resources_file);
+                println!("Skipping test (resource list not available)");
+                return;
+            }
+        };
+
+        let all_resources: Vec<&str> = resources_content
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .collect();
+
+        // Track resources by icon availability
+        let mut resources_with_icons = std::collections::HashMap::new();
+        let mut resources_without_icons = Vec::new();
+
+        for resource_type in &all_resources {
+            let (icon_name, service_name, _color, _emoji) = get_service_info(resource_type);
+
+            if !icon_name.is_empty() {
+                resources_with_icons
+                    .entry(icon_name)
+                    .or_insert_with(Vec::new)
+                    .push(*resource_type);
+            } else {
+                resources_without_icons.push(*resource_type);
+            }
+        }
+
+        // Report results
+        println!("\n═══════════════════════════════════════════════════");
+        println!("AWS Provider Icon Coverage Report");
+        println!("═══════════════════════════════════════════════════");
+        println!("Total AWS resources in provider: {}", all_resources.len());
+        println!("Resources with icon mappings: {}", all_resources.len() - resources_without_icons.len());
+        println!("Resources without icons: {}", resources_without_icons.len());
+        println!("Coverage: {:.1}%",
+            ((all_resources.len() - resources_without_icons.len()) as f32 / all_resources.len() as f32) * 100.0
+        );
+
+        println!("\n─────────────────────────────────────────────────");
+        println!("Icon Mappings (grouped by icon):");
+        println!("─────────────────────────────────────────────────");
+
+        let mut icon_names: Vec<_> = resources_with_icons.keys().collect();
+        icon_names.sort();
+
+        for icon_name in icon_names {
+            let resources = resources_with_icons.get(icon_name).unwrap();
+            println!("\n{} ({} resources):", icon_name, resources.len());
+            for resource in resources.iter().take(5) {
+                println!("  • {}", resource);
+            }
+            if resources.len() > 5 {
+                println!("  ... and {} more", resources.len() - 5);
+            }
+        }
+
+        println!("\n─────────────────────────────────────────────────");
+        println!("Top 20 Resources Without Icons:");
+        println!("─────────────────────────────────────────────────");
+
+        // Group by service prefix to identify patterns
+        let mut service_groups: std::collections::HashMap<String, Vec<&str>> = std::collections::HashMap::new();
+        for resource in &resources_without_icons {
+            // Extract service prefix (e.g., "aws_rds" from "aws_rds_cluster")
+            let parts: Vec<&str> = resource.split('_').collect();
+            let prefix = if parts.len() >= 2 {
+                format!("{}_{}", parts[0], parts[1])
+            } else {
+                resource.to_string()
+            };
+            service_groups
+                .entry(prefix)
+                .or_insert_with(Vec::new)
+                .push(*resource);
+        }
+
+        let mut sorted_groups: Vec<_> = service_groups.iter().collect();
+        sorted_groups.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+
+        for (prefix, resources) in sorted_groups.iter().take(20) {
+            println!("\n{} ({} resources):", prefix, resources.len());
+            for resource in resources.iter().take(3) {
+                println!("  • {}", resource);
+            }
+            if resources.len() > 3 {
+                println!("  ... and {} more", resources.len() - 3);
+            }
+        }
+
+        println!("\n═══════════════════════════════════════════════════\n");
+
+        // This test always passes - it's informational only
+        // We don't require 100% coverage since many resources are rarely used
+        assert!(true, "Icon coverage documentation generated successfully");
     }
 }
