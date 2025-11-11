@@ -134,6 +134,19 @@ fn convert_svg_to_png(svg_path: &Path, png_path: &Path, size: u32) -> Result<()>
     Ok(())
 }
 
+fn generate_colored_square_svg(color: &str, size: u32) -> Result<String> {
+    // Generate a simple colored square SVG that will be processed the same way as icon SVGs
+    // The rounded corners will be applied during PNG conversion
+    let svg = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<svg width="{}" height="{}" viewBox="0 0 {} {}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="{}" height="{}" fill="{}"/>
+</svg>"#,
+        size, size, size, size, size, size, color
+    );
+    Ok(svg)
+}
+
 fn apply_rounded_corners(pixmap: &mut tiny_skia::Pixmap, radius: f32) {
     use tiny_skia::*;
 
@@ -562,51 +575,46 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
         // Check if we have a cached SVG icon
         let svg_path = cache_dir.join(format!("{}.svg", icon_name));
 
-        // Use icon if available, otherwise use colored box
-        if svg_path.exists() && !icon_name.is_empty() {
-            // Convert SVG to PNG for all output formats
+        // Determine which PNG to use: real icon or generated colored square
+        let png_path = if svg_path.exists() && !icon_name.is_empty() {
+            // Use real icon
             let png_path = temp_dir.join(format!("{}.png", icon_name));
-
             match convert_svg_to_png(&svg_path, &png_path, icon_size) {
-                Ok(_) => {
-                    let icon_path_str = png_path.to_string_lossy();
-                    // GraphViz: HTML-like label with image in table cell and colored text below
-                    // Set FIXEDSIZE on TD to constrain image proportionally for PDF output
-                    // Text color matches the edge color
-                    let html_label = format!(
-                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
-                        icon_size, icon_size, icon_path_str, color, resource.label
-                    );
-                    dot.push_str(&format!(
-                        "    {} [label={}, shape=plaintext, fontsize=10];\n",
-                        node_id, html_label
-                    ));
-                }
-                Err(_) => {
-                    // Fallback: use same HTML table structure but with colored square instead of image
-                    // This ensures visual parity between resources with and without icons
-                    let html_label = format!(
-                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\" BGCOLOR=\"{}\"></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
-                        icon_size, icon_size, fallback_color, color, resource.label
-                    );
-                    dot.push_str(&format!(
-                        "    {} [label={}, shape=plaintext, fontsize=10];\n",
-                        node_id, html_label
-                    ));
-                }
+                Ok(_) => Some(png_path),
+                Err(_) => None,
             }
         } else {
-            // Fallback: use same HTML table structure but with colored square instead of image
-            // This ensures visual parity between resources with and without icons
-            let html_label = format!(
-                "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\" BGCOLOR=\"{}\"></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
-                icon_size, icon_size, fallback_color, color, resource.label
-            );
-            dot.push_str(&format!(
-                "    {} [label={}, shape=plaintext, fontsize=10];\n",
-                node_id, html_label
-            ));
-        }
+            None
+        };
+
+        // If we don't have a PNG yet, generate a colored square SVG and convert it
+        let final_png_path = if let Some(path) = png_path {
+            path
+        } else {
+            // Generate colored square SVG and convert to PNG with same rounded corners
+            let svg_content = generate_colored_square_svg(fallback_color, icon_size)?;
+            let fallback_svg_path = temp_dir.join(format!("fallback_{}_{}.svg", idx, resource.name.replace(".", "_")));
+            let fallback_png_path = temp_dir.join(format!("fallback_{}_{}.png", idx, resource.name.replace(".", "_")));
+
+            fs::write(&fallback_svg_path, svg_content)
+                .context("Failed to write fallback SVG")?;
+
+            convert_svg_to_png(&fallback_svg_path, &fallback_png_path, icon_size)
+                .context("Failed to convert fallback SVG to PNG")?;
+
+            fallback_png_path
+        };
+
+        // Use the same HTML structure for all resources (icon or fallback)
+        let icon_path_str = final_png_path.to_string_lossy();
+        let html_label = format!(
+            "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
+            icon_size, icon_size, icon_path_str, color, resource.label
+        );
+        dot.push_str(&format!(
+            "    {} [label={}, shape=plaintext, fontsize=10];\n",
+            node_id, html_label
+        ));
 
         node_map.insert(resource.name.clone(), node_id);
     }
