@@ -557,7 +557,7 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
     // Generate nodes
     for (idx, resource) in aws_resources.iter().enumerate() {
         let node_id = format!("node_{}", idx);
-        let (icon_name, service_name, color, _fallback_emoji) = get_service_info(&resource.resource_type);
+        let (icon_name, _service_name, fallback_color, _fallback_emoji) = get_service_info(&resource.resource_type);
 
         // Check if we have a cached SVG icon
         let svg_path = cache_dir.join(format!("{}.svg", icon_name));
@@ -583,22 +583,28 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
                     ));
                 }
                 Err(_) => {
-                    // Fallback to styled box if conversion fails
-                    // Make square boxes the same visual size as icons for consistency
-                    let label = format!("{}\\n{}", service_name, resource.label);
+                    // Fallback: use same HTML table structure but with colored square instead of image
+                    // This ensures visual parity between resources with and without icons
+                    let html_label = format!(
+                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\" BGCOLOR=\"{}\"></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
+                        icon_size, icon_size, fallback_color, color, resource.label
+                    );
                     dot.push_str(&format!(
-                        "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box, width=1.5, height=1.5, fixedsize=true];\n",
-                        node_id, label, color
+                        "    {} [label={}, shape=plaintext, fontsize=10];\n",
+                        node_id, html_label
                     ));
                 }
             }
         } else {
-            // Fallback to styled box with service name
-            // Make square boxes the same visual size as icons for consistency
-            let label = format!("{}\\n{}", service_name, resource.label);
+            // Fallback: use same HTML table structure but with colored square instead of image
+            // This ensures visual parity between resources with and without icons
+            let html_label = format!(
+                "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\" BGCOLOR=\"{}\"></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
+                icon_size, icon_size, fallback_color, color, resource.label
+            );
             dot.push_str(&format!(
-                "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box, width=1.5, height=1.5, fixedsize=true];\n",
-                node_id, label, color
+                "    {} [label={}, shape=plaintext, fontsize=10];\n",
+                node_id, html_label
             ));
         }
 
