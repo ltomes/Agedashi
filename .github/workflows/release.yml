@@ -127,6 +127,12 @@ jobs:
           cd ..
           mv release-samples/agedashi-samples-${{ steps.version.outputs.version }}.tar.gz .
 
+      - name: Publish to crates.io
+        run: |
+          cargo publish --token ${{ secrets.CRATES_IO_TOKEN }} --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+
       - name: Commit version bump
         if: github.ref == 'refs/heads/main'
         run: |
