@@ -198,7 +198,7 @@ The core logic is written in Rust for speed and reliability, with GraphViz handl
 
 ## Examples Directory
 
-Check out the `examples/` directory for sample Terraform configurations:
+Check out the `test/examples/` directory for sample Terraform configurations:
 
 - `simple-aws.tf` - Basic AWS setup with VPC, EC2, RDS, and S3
 - `complex-aws.tf` - Advanced multi-tier architecture with 20+ services
@@ -206,9 +206,9 @@ Check out the `examples/` directory for sample Terraform configurations:
 To test with examples:
 
 ```bash
-cd examples
+cd test/examples
 tofu init
-tofu graph | ../target/release/agedashi --output png --name example
+tofu graph | ../../target/release/agedashi --output png --name example
 ```
 
 ## Troubleshooting

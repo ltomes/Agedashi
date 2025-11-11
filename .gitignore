@@ -51,11 +51,11 @@ ENV/
 .venv
 
 # Examples output
-examples/*.png
-examples/*.svg
-examples/*.pdf
-examples/*.jpg
-examples/.terraform/
-examples/*.tfstate
-examples/*.tfstate.backup
-examples/lambda.zip
+test/examples/*.png
+test/examples/*.svg
+test/examples/*.pdf
+test/examples/*.jpg
+test/examples/.terraform/
+test/examples/*.tfstate
+test/examples/*.tfstate.backup
+test/examples/lambda.zip
