@@ -385,11 +385,20 @@ fn download_icons_as_needed(cache_dir: &Path) -> Result<()> {
     } else {
         // Use the embedded archive (production mode - cargo install)
         // Write the embedded archive to a temporary file and extract from it
-        let temp_archive = NamedTempFile::new()
+        let mut temp_archive = NamedTempFile::new()
             .context("Failed to create temporary file for embedded icons")?;
-        fs::write(temp_archive.path(), EMBEDDED_ICONS_ARCHIVE)
+
+        // Write using the existing file handle instead of opening a new one
+        temp_archive.write_all(EMBEDDED_ICONS_ARCHIVE)
             .context("Failed to write embedded icons to temporary file")?;
-        extract_icons_from_7z(temp_archive.path(), cache_dir)
+        temp_archive.flush()
+            .context("Failed to flush embedded icons to disk")?;
+
+        // Extract from the temp file (temp_archive stays in scope throughout this call)
+        let extraction_result = extract_icons_from_7z(temp_archive.path(), cache_dir);
+
+        // temp_archive is explicitly kept alive until here, then dropped and deleted
+        extraction_result
     };
 
     match result {
