@@ -2,13 +2,14 @@ name: Generate Sample Diagrams
 
 on:
   push:
-    branches: [ "**" ]
+    branches: [ "develop", "main" ]
   pull_request:
     types: [opened, synchronize]
 
 permissions:
   contents: write
   pull-requests: write
+  actions: read
 
 jobs:
   generate-diagrams:
@@ -71,7 +72,10 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: sample-diagrams
-        path: samples/*.png
+        path: |
+          samples/*.png
+          samples/*.svg
+          samples/*.pdf
         retention-days: 90
 
     - name: Add diagrams to workflow summary
@@ -95,61 +99,82 @@ jobs:
         script: |
           const fs = require('fs');
 
-          // Read the PNG files and convert to base64
-          const tbDiagram = fs.readFileSync('samples/sample-infrastructure-tb.png');
-          const lrDiagram = fs.readFileSync('samples/sample-infrastructure-lr.png');
+          try {
+            // Get artifact information and create download links
+            const runId = context.runId;
+            const repo = context.repo;
+            const artifactUrl = `https://github.com/${repo.owner}/${repo.repo}/actions/runs/${runId}`;
 
-          const tbBase64 = tbDiagram.toString('base64');
-          const lrBase64 = lrDiagram.toString('base64');
+            // Read PNG files to get size info
+            const tbPngSize = fs.statSync('samples/sample-infrastructure-tb.png').size;
+            const lrPngSize = fs.statSync('samples/sample-infrastructure-lr.png').size;
+            const formatSize = (bytes) => {
+              const mb = bytes / (1024 * 1024);
+              return mb < 1 ? `${(bytes / 1024).toFixed(1)} KB` : `${mb.toFixed(2)} MB`;
+            };
 
-          // Create comment body with embedded images
-          const body = `## 📊 Generated Sample Diagrams
+            const body = [
+              '## 📊 Generated Sample Diagrams',
+              '',
+              'Sample infrastructure diagrams have been generated from `test/sample-graph.dot`.',
+              '',
+              '### 📦 Download Diagrams',
+              '',
+              'All diagram formats are available as workflow artifacts:',
+              '',
+              `**[⬇️ Download sample-diagrams.zip](${artifactUrl}#artifacts)**`,
+              '',
+              'The artifact contains:',
+              `- \`sample-infrastructure-tb.png\` (${formatSize(tbPngSize)}) - Top-to-Bottom layout`,
+              `- \`sample-infrastructure-lr.png\` (${formatSize(lrPngSize)}) - Left-to-Right layout`,
+              '- `sample-infrastructure-tb.svg` - Vector format (TB)',
+              '- `sample-infrastructure-lr.svg` - Vector format (LR)',
+              '- `sample-infrastructure-tb.pdf` - Print format (TB)',
+              '- `sample-infrastructure-lr.pdf` - Print format (LR)',
+              '',
+              '### 🔍 Preview',
+              '',
+              'Click on the artifact link above, then click "sample-diagrams" to download and view the full-quality images.',
+              '',
+              '---',
+              '',
+              `<sub>🤖 Generated at ${new Date().toISOString()} • [View workflow run](${artifactUrl})</sub>`
+            ].join('\n');
 
-          <details open>
-          <summary><b>Top-to-Bottom Layout</b></summary>
-
-          ![Sample Infrastructure (TB)](data:image/png;base64,${tbBase64})
-
-          </details>
-
-          <details>
-          <summary><b>Left-to-Right Layout</b></summary>
-
-          ![Sample Infrastructure (LR)](data:image/png;base64,${lrBase64})
-
-          </details>
-
-          ---
-
-          <sub>🤖 Generated from \`test/sample-graph.dot\` • [Download artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>`;
-
-          // Find existing comment by this bot
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-          });
-
-          const botComment = comments.find(comment =>
-            comment.user.type === 'Bot' &&
-            comment.body.includes('📊 Generated Sample Diagrams')
-          );
-
-          // Update existing comment or create new one
-          if (botComment) {
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: botComment.id,
-              body: body
-            });
-          } else {
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+            // Find existing comment by this bot
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: repo.owner,
+              repo: repo.repo,
               issue_number: context.issue.number,
-              body: body
             });
+
+            // Use login name for more reliable bot detection
+            const botComment = comments.find(comment =>
+              comment.user.login === 'github-actions[bot]' &&
+              comment.body.includes('📊 Generated Sample Diagrams')
+            );
+
+            // Update existing comment or create new one
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: repo.owner,
+                repo: repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+              core.info(`Updated existing comment ${botComment.id}`);
+            } else {
+              const comment = await github.rest.issues.createComment({
+                owner: repo.owner,
+                repo: repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+              core.info(`Created new comment ${comment.data.id}`);
+            }
+          } catch (error) {
+            core.setFailed(`Failed to post PR comment: ${error.message}`);
+            throw error;
           }
 
     - name: Commit and push diagrams
