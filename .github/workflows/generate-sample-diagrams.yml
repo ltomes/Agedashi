@@ -126,19 +126,44 @@ jobs:
             const artifactUrl = `https://github.com/${repo.owner}/${repo.repo}/actions/runs/${runId}`;
 
             // Read PNG files to get size info
-            const tbPngSize = fs.statSync('samples/sample-infrastructure-tb.png').size;
-            const lrPngSize = fs.statSync('samples/sample-infrastructure-lr.png').size;
+            const tbPngPath = 'samples/sample-infrastructure-tb.png';
+            const lrPngPath = 'samples/sample-infrastructure-lr.png';
+            const tbPngSize = fs.statSync(tbPngPath).size;
+            const lrPngSize = fs.statSync(lrPngPath).size;
+
             const formatSize = (bytes) => {
               const mb = bytes / (1024 * 1024);
               return mb < 1 ? `${(bytes / 1024).toFixed(1)} KB` : `${mb.toFixed(2)} MB`;
             };
 
+            // Try to embed image as base64 if small enough (< 50KB)
+            // GitHub might block data URIs for security, but let's test it
+            const MAX_INLINE_SIZE = 50 * 1024; // 50KB
+            let imagePreview = '';
+
+            if (tbPngSize < MAX_INLINE_SIZE) {
+              const tbPngData = fs.readFileSync(tbPngPath);
+              const tbBase64 = tbPngData.toString('base64');
+              imagePreview = [
+                '',
+                '### 🖼️ Preview (Top-to-Bottom Layout)',
+                '',
+                `<img src="data:image/png;base64,${tbBase64}" alt="Sample Infrastructure Diagram" width="600">`,
+                '',
+                '<sub>If the image above does not display, GitHub may be blocking inline images. Download from artifacts instead.</sub>',
+                ''
+              ].join('\n');
+              core.info(`Embedded TB diagram as base64 (${formatSize(tbPngSize)})`);
+            } else {
+              core.info(`TB diagram too large for inline embedding (${formatSize(tbPngSize)} > 50KB)`);
+            }
+
             const body = [
               '## 📊 Generated Sample Diagrams',
               '',
               'Sample infrastructure diagrams have been generated from `test/sample-graph.dot`.',
-              '',
-              '### 📦 Download Diagrams',
+              imagePreview,
+              '### 📦 Download All Formats',
               '',
               'All diagram formats are available as workflow artifacts:',
               '',
@@ -151,10 +176,6 @@ jobs:
               '- `sample-infrastructure-lr.svg` - Vector format (LR)',
               '- `sample-infrastructure-tb.pdf` - Print format (TB)',
               '- `sample-infrastructure-lr.pdf` - Print format (LR)',
-              '',
-              '### 🔍 Preview',
-              '',
-              'Click on the artifact link above, then click "sample-diagrams" to download and view the full-quality images.',
               '',
               '---',
               '',
