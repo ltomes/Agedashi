@@ -82,15 +82,35 @@ jobs:
       run: |
         REPO="${{ github.repository }}"
         BRANCH="${{ github.ref_name }}"
+        RUN_ID="${{ github.run_id }}"
+        EVENT_NAME="${{ github.event_name }}"
+
         echo "## Generated Diagrams" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Top-to-Bottom Layout" >> $GITHUB_STEP_SUMMARY
-        echo "![TB Diagram](https://raw.githubusercontent.com/${REPO}/${BRANCH}/samples/sample-infrastructure-tb.png)" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Left-to-Right Layout" >> $GITHUB_STEP_SUMMARY
-        echo "![LR Diagram](https://raw.githubusercontent.com/${REPO}/${BRANCH}/samples/sample-infrastructure-lr.png)" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "[View all samples in repository →](https://github.com/${REPO}/tree/${BRANCH}/samples)" >> $GITHUB_STEP_SUMMARY
+
+        if [ "$EVENT_NAME" = "pull_request" ]; then
+          # For PRs, link to artifacts since diagrams aren't committed
+          echo "Sample diagrams have been generated and uploaded as artifacts." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**[⬇️ Download sample-diagrams.zip](https://github.com/${REPO}/actions/runs/${RUN_ID}#artifacts)**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The artifact contains:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`sample-infrastructure-tb.png\` - Top-to-Bottom layout" >> $GITHUB_STEP_SUMMARY
+          echo "- \`sample-infrastructure-lr.png\` - Left-to-Right layout" >> $GITHUB_STEP_SUMMARY
+          echo "- \`sample-infrastructure-tb.svg\` - Vector format (TB)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`sample-infrastructure-lr.svg\` - Vector format (LR)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`sample-infrastructure-tb.pdf\` - Print format (TB)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`sample-infrastructure-lr.pdf\` - Print format (LR)" >> $GITHUB_STEP_SUMMARY
+        else
+          # For develop/main, show images directly since they're committed
+          echo "### Top-to-Bottom Layout" >> $GITHUB_STEP_SUMMARY
+          echo "![TB Diagram](https://raw.githubusercontent.com/${REPO}/${BRANCH}/samples/sample-infrastructure-tb.png)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Left-to-Right Layout" >> $GITHUB_STEP_SUMMARY
+          echo "![LR Diagram](https://raw.githubusercontent.com/${REPO}/${BRANCH}/samples/sample-infrastructure-lr.png)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View all samples in repository →](https://github.com/${REPO}/tree/${BRANCH}/samples)" >> $GITHUB_STEP_SUMMARY
+        fi
 
     - name: Post diagrams to PR comment
       if: github.event_name == 'pull_request'
