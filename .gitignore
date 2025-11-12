@@ -59,3 +59,6 @@ test/examples/.terraform/
 test/examples/*.tfstate
 test/examples/*.tfstate.backup
 test/examples/lambda.zip
+
+# Test output (visual regression artifacts)
+test/output/

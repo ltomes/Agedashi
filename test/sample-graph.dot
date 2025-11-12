@@ -2,25 +2,58 @@ digraph {
 	compound = "true"
 	newrank = "true"
 	subgraph "root" {
-		"[root] aws_db_instance.postgres (expand)" [label = "aws_db_instance.postgres", shape = "box"]
-		"[root] aws_db_subnet_group.main (expand)" [label = "aws_db_subnet_group.main", shape = "box"]
-		"[root] aws_instance.web (expand)" [label = "aws_instance.web", shape = "box"]
-		"[root] aws_lb.main (expand)" [label = "aws_lb.main", shape = "box"]
-		"[root] aws_s3_bucket.static (expand)" [label = "aws_s3_bucket.static", shape = "box"]
-		"[root] aws_security_group.web (expand)" [label = "aws_security_group.web", shape = "box"]
-		"[root] aws_subnet.public (expand)" [label = "aws_subnet.public", shape = "box"]
-		"[root] aws_vpc.main (expand)" [label = "aws_vpc.main", shape = "box"]
 		"[root] provider[\"registry.terraform.io/hashicorp/aws\"]" [label = "provider[\"registry.terraform.io/hashicorp/aws\"]", shape = "diamond"]
-		"[root] aws_db_instance.postgres (expand)" -> "[root] aws_db_subnet_group.main (expand)"
-		"[root] aws_db_instance.postgres (expand)" -> "[root] aws_security_group.web (expand)"
-		"[root] aws_db_subnet_group.main (expand)" -> "[root] aws_subnet.public (expand)"
-		"[root] aws_instance.web (expand)" -> "[root] aws_security_group.web (expand)"
-		"[root] aws_instance.web (expand)" -> "[root] aws_subnet.public (expand)"
-		"[root] aws_lb.main (expand)" -> "[root] aws_security_group.web (expand)"
-		"[root] aws_lb.main (expand)" -> "[root] aws_subnet.public (expand)"
+
+		# VPC Module Resources - demonstrating module.prefix handling
+		"[root] module.networking.aws_vpc.main (expand)" [label = "module.networking.aws_vpc.main", shape = "box"]
+		"[root] module.networking.aws_subnet.public (expand)" [label = "module.networking.aws_subnet.public", shape = "box"]
+		"[root] module.networking.aws_subnet.private (expand)" [label = "module.networking.aws_subnet.private", shape = "box"]
+		"[root] module.networking.aws_security_group.web (expand)" [label = "module.networking.aws_security_group.web", shape = "box"]
+
+		# Data Sources - demonstrating data.prefix handling
+		"[root] data.aws_ami.ubuntu (expand)" [label = "data.aws_ami.ubuntu", shape = "box"]
+
+		# Compute Resources - mix of module and regular resources
+		"[root] aws_instance.web (expand)" [label = "aws_instance.web", shape = "box"]
+		"[root] module.compute.aws_autoscaling_group.app (expand)" [label = "module.compute.aws_autoscaling_group.app", shape = "box"]
+
+		# Load Balancer
+		"[root] aws_lb.main (expand)" [label = "aws_lb.main", shape = "box"]
+
+		# Database Module - demonstrating nested dependencies
+		"[root] module.database.aws_db_instance.postgres (expand)" [label = "module.database.aws_db_instance.postgres", shape = "box"]
+		"[root] module.database.aws_db_subnet_group.main (expand)" [label = "module.database.aws_db_subnet_group.main", shape = "box"]
+
+		# Storage
+		"[root] aws_s3_bucket.static (expand)" [label = "aws_s3_bucket.static", shape = "box"]
+
+		# Provider dependencies
+		"[root] module.networking.aws_vpc.main (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+		"[root] data.aws_ami.ubuntu (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
 		"[root] aws_s3_bucket.static (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
-		"[root] aws_security_group.web (expand)" -> "[root] aws_vpc.main (expand)"
-		"[root] aws_subnet.public (expand)" -> "[root] aws_vpc.main (expand)"
-		"[root] aws_vpc.main (expand)" -> "[root] provider[\"registry.terraform.io/hashicorp/aws\"]"
+
+		# VPC dependencies
+		"[root] module.networking.aws_subnet.public (expand)" -> "[root] module.networking.aws_vpc.main (expand)"
+		"[root] module.networking.aws_subnet.private (expand)" -> "[root] module.networking.aws_vpc.main (expand)"
+		"[root] module.networking.aws_security_group.web (expand)" -> "[root] module.networking.aws_vpc.main (expand)"
+
+		# Compute dependencies - showing data source usage
+		"[root] aws_instance.web (expand)" -> "[root] data.aws_ami.ubuntu (expand)"
+		"[root] aws_instance.web (expand)" -> "[root] module.networking.aws_subnet.public (expand)"
+		"[root] aws_instance.web (expand)" -> "[root] module.networking.aws_security_group.web (expand)"
+
+		"[root] module.compute.aws_autoscaling_group.app (expand)" -> "[root] data.aws_ami.ubuntu (expand)"
+		"[root] module.compute.aws_autoscaling_group.app (expand)" -> "[root] module.networking.aws_subnet.private (expand)"
+		"[root] module.compute.aws_autoscaling_group.app (expand)" -> "[root] module.networking.aws_security_group.web (expand)"
+
+		# Load balancer dependencies
+		"[root] aws_lb.main (expand)" -> "[root] module.networking.aws_subnet.public (expand)"
+		"[root] aws_lb.main (expand)" -> "[root] module.networking.aws_security_group.web (expand)"
+		"[root] aws_lb.main (expand)" -> "[root] module.compute.aws_autoscaling_group.app (expand)"
+
+		# Database dependencies
+		"[root] module.database.aws_db_subnet_group.main (expand)" -> "[root] module.networking.aws_subnet.private (expand)"
+		"[root] module.database.aws_db_instance.postgres (expand)" -> "[root] module.database.aws_db_subnet_group.main (expand)"
+		"[root] module.database.aws_db_instance.postgres (expand)" -> "[root] module.networking.aws_security_group.web (expand)"
 	}
 }

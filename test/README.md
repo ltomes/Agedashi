@@ -4,9 +4,12 @@ This directory contains test files for Agedashi.
 
 ## Test Files
 
-- `sample-graph.dot` - Sample Terraform graph output in DOT format
+- `sample-graph.dot` - Simple sample Terraform graph output in DOT format
+- `all-aws-resources.dot` - Comprehensive test covering all supported AWS resource types
+- `complex-modules-test.dot` - Complex real-world scenario with modules, data sources, and nested modules
 - `expected-output.py` - The Python code that Agedashi should generate
 - `test.sh` - Automated test script
+- `output/` - Generated visual regression test artifacts (gitignored)
 
 ## Prerequisites for Testing
 
@@ -209,3 +212,76 @@ terraform graph | agedashi --output svg --name production-infra
 ```
 
 Then manually verify the diagram matches your infrastructure.
+
+## Unit Tests
+
+Agedashi includes comprehensive unit tests for core functionality:
+
+```bash
+# Run all tests
+cargo test
+
+# Run specific test
+cargo test test_parse_module_prefixed_resources
+
+# Run with output visible
+cargo test -- --nocapture
+```
+
+### Test Coverage
+
+The test suite includes:
+
+1. **Module Resource Parsing** - Validates that `module.vpc.aws_vpc.main` is correctly extracted as `aws_vpc`
+2. **Data Source Parsing** - Validates that `data.aws_ami.latest` is correctly extracted as `aws_ami`
+3. **Nested Module Parsing** - Handles deeply nested modules like `module.app.module.network.aws_vpc.main`
+4. **Resource Filtering** - Ensures module and data resources are NOT filtered out
+5. **Edge Preservation** - Verifies connections between resources are maintained
+6. **Mixed Scenarios** - Tests combinations of modules, data sources, and regular resources
+7. **Icon Coverage** - Documents which AWS resources have icon support
+8. **Visual Regression** - Generates a complex diagram for manual inspection
+
+## Visual Regression Testing
+
+The `test_visual_regression_complex_modules` test generates a comprehensive diagram that developers can visually inspect:
+
+```bash
+# Run the visual regression test
+cargo test test_visual_regression_complex_modules -- --nocapture
+
+# Output is generated in test/output/
+ls -la test/output/
+```
+
+### What to Look For
+
+When reviewing the visual regression output:
+
+✅ **All module resources are visible** - Resources like `module.networking.aws_vpc.main` should appear in the diagram
+
+✅ **Data sources included** - Data sources like `data.aws_ami.amazon_linux_2` should be shown
+
+✅ **Nested modules work** - Deeply nested like `module.app.module.asg.aws_autoscaling_group.web` should render
+
+✅ **Edges connect properly** - Arrows should connect related resources
+
+✅ **Icons or styled boxes** - Either AWS icons (if available) or colored fallback boxes
+
+### Expected Metrics
+
+The complex modules test should show:
+- **30+ total resources** (if fewer, resources are being filtered incorrectly)
+- **22+ module resources** (validates module prefix handling)
+- **4+ data sources** (validates data source handling)
+- **30+ edges** (validates relationship preservation)
+
+If these metrics are significantly lower, it indicates a regression in the module/data source handling logic.
+
+### Visual Test Files Generated
+
+After running the visual regression test, check:
+- `test/output/complex-modules-test.dot` - Generated DOT file (human-readable)
+- `test/output/complex-modules-test-visual-regression.png` - PNG diagram (requires GraphViz)
+- `test/output/complex-modules-test-visual-regression.svg` - SVG diagram (requires GraphViz)
+
+> **Note**: These files are gitignored and can be regenerated anytime by running the test.

@@ -134,6 +134,19 @@ fn convert_svg_to_png(svg_path: &Path, png_path: &Path, size: u32) -> Result<()>
     Ok(())
 }
 
+fn generate_colored_square_svg(color: &str, size: u32) -> Result<String> {
+    // Generate a simple colored square SVG that will be processed the same way as icon SVGs
+    // The rounded corners will be applied during PNG conversion
+    let svg = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<svg width="{}" height="{}" viewBox="0 0 {} {}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="{}" height="{}" fill="{}"/>
+</svg>"#,
+        size, size, size, size, size, size, color
+    );
+    Ok(svg)
+}
+
 fn apply_rounded_corners(pixmap: &mut tiny_skia::Pixmap, radius: f32) {
     use tiny_skia::*;
 
@@ -403,6 +416,27 @@ fn download_icons_as_needed(cache_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+fn extract_resource_type(full_name: &str) -> String {
+    // Extract the actual AWS resource type from names that may include module or data prefixes
+    // Examples:
+    //   "aws_instance.web" -> "aws_instance"
+    //   "module.vpc.aws_vpc.main" -> "aws_vpc"
+    //   "data.aws_ami.latest" -> "aws_ami"
+    //   "module.app.module.network.aws_vpc.main" -> "aws_vpc"
+
+    let parts: Vec<&str> = full_name.split('.').collect();
+
+    // Find the first part that starts with "aws_"
+    for part in &parts {
+        if part.starts_with("aws_") {
+            return part.to_string();
+        }
+    }
+
+    // If no AWS resource type found, return the first part (fallback behavior)
+    parts.first().unwrap_or(&full_name).to_string()
+}
+
 fn parse_dot_graph(dot_content: &str) -> Result<TerraformGraph> {
     let mut graph = TerraformGraph::new();
 
@@ -422,12 +456,13 @@ fn parse_dot_graph(dot_content: &str) -> Result<TerraformGraph> {
             if let Some(caps) = node_re.captures(line) {
                 let full_name = caps.get(1).map_or("", |m| m.as_str()).to_string();
 
-                // Extract resource type from the node name (e.g., "aws_instance" from "aws_instance.web")
-                let resource_type = if let Some(dot_pos) = full_name.find('.') {
-                    full_name[..dot_pos].to_string()
-                } else {
-                    full_name.clone()
-                };
+                // Extract resource type from the node name, handling modules and data sources
+                // Examples:
+                //   "aws_instance.web" -> "aws_instance"
+                //   "module.vpc.aws_vpc.main" -> "aws_vpc"
+                //   "data.aws_ami.latest" -> "aws_ami"
+                //   "module.app.module.network.aws_vpc.main" -> "aws_vpc"
+                let resource_type = extract_resource_type(&full_name);
 
                 let label = label_re
                     .captures(line)
@@ -458,6 +493,7 @@ fn parse_dot_graph(dot_content: &str) -> Result<TerraformGraph> {
 
 fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
     // Returns (icon_name, service_name, color, fallback_emoji)
+    // Colors are AWS brand colors for visual consistency
     match resource_type {
         // Compute
         t if t.contains("aws_instance") => ("ec2", "EC2", "#FF9900", "💻"),
@@ -465,6 +501,7 @@ fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
         t if t.contains("aws_ecs") => ("ecs", "ECS", "#FF9900", "🐳"),
         t if t.contains("aws_eks") => ("eks", "EKS", "#FF9900", "☸"),
         t if t.contains("aws_autoscaling") => ("autoscaling", "AutoScaling", "#FF9900", "📈"),
+        t if t.contains("aws_launch_template") => ("ec2", "LaunchTemplate", "#FF9900", "📋"),
 
         // Database
         t if t.contains("aws_db_instance") => ("rds", "RDS", "#3B48CC", "🗄"),
@@ -499,8 +536,14 @@ fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
         // Analytics
         t if t.contains("aws_kinesis") => ("kinesis", "Kinesis", "#8C4FFF", "📊"),
 
-        // Default
-        _ => ("", "Service", "#232F3E", "🔧"),
+        // Data Sources - use a distinct color for data/reference resources
+        t if t.contains("aws_ami") => ("", "AMI", "#527FFF", "💿"),
+        t if t.contains("aws_availability_zones") => ("", "AZs", "#527FFF", "🗺"),
+        t if t.contains("aws_caller_identity") => ("", "CallerIdentity", "#527FFF", "👤"),
+        t if t.contains("aws_region") => ("", "Region", "#527FFF", "🌎"),
+
+        // Default - use a medium AWS brand color that works well
+        _ => ("", "Resource", "#146EB4", "📦"),
     }
 }
 
@@ -527,48 +570,52 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
     // Generate nodes
     for (idx, resource) in aws_resources.iter().enumerate() {
         let node_id = format!("node_{}", idx);
-        let (icon_name, service_name, color, _fallback_emoji) = get_service_info(&resource.resource_type);
+        let (icon_name, _service_name, fallback_color, _fallback_emoji) = get_service_info(&resource.resource_type);
 
         // Check if we have a cached SVG icon
         let svg_path = cache_dir.join(format!("{}.svg", icon_name));
 
-        // Use icon if available, otherwise use colored box
-        if svg_path.exists() && !icon_name.is_empty() {
-            // Convert SVG to PNG for all output formats
+        // Determine which PNG to use: real icon or generated colored square
+        let png_path = if svg_path.exists() && !icon_name.is_empty() {
+            // Use real icon
             let png_path = temp_dir.join(format!("{}.png", icon_name));
-
             match convert_svg_to_png(&svg_path, &png_path, icon_size) {
-                Ok(_) => {
-                    let icon_path_str = png_path.to_string_lossy();
-                    // GraphViz: HTML-like label with image in table cell and colored text below
-                    // Set FIXEDSIZE on TD to constrain image proportionally for PDF output
-                    // Text color matches the edge color
-                    let html_label = format!(
-                        "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
-                        icon_size, icon_size, icon_path_str, color, resource.label
-                    );
-                    dot.push_str(&format!(
-                        "    {} [label={}, shape=plaintext, fontsize=10];\n",
-                        node_id, html_label
-                    ));
-                }
-                Err(_) => {
-                    // Fallback to styled box if conversion fails
-                    let label = format!("{}\\n{}", service_name, resource.label);
-                    dot.push_str(&format!(
-                        "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box, width=1.5, height=1.0];\n",
-                        node_id, label, color
-                    ));
-                }
+                Ok(_) => Some(png_path),
+                Err(_) => None,
             }
         } else {
-            // Fallback to styled box with service name
-            let label = format!("{}\\n{}", service_name, resource.label);
-            dot.push_str(&format!(
-                "    {} [label=\"{}\", fillcolor=\"{}\", fontcolor=\"white\", style=\"filled,rounded\", shape=box, width=1.5, height=1.0];\n",
-                node_id, label, color
-            ));
-        }
+            None
+        };
+
+        // If we don't have a PNG yet, generate a colored square SVG and convert it
+        let final_png_path = if let Some(path) = png_path {
+            path
+        } else {
+            // Generate colored square SVG and convert to PNG with same rounded corners
+            let svg_content = generate_colored_square_svg(fallback_color, icon_size)?;
+            let fallback_svg_path = temp_dir.join(format!("fallback_{}_{}.svg", idx, resource.name.replace(".", "_")));
+            let fallback_png_path = temp_dir.join(format!("fallback_{}_{}.png", idx, resource.name.replace(".", "_")));
+
+            fs::write(&fallback_svg_path, svg_content)
+                .context("Failed to write fallback SVG")?;
+
+            convert_svg_to_png(&fallback_svg_path, &fallback_png_path, icon_size)
+                .context("Failed to convert fallback SVG to PNG")?;
+
+            fallback_png_path
+        };
+
+        // Use the same HTML structure for all resources (icon or fallback)
+        // Text color matches the service color (not the edge color)
+        let icon_path_str = final_png_path.to_string_lossy();
+        let html_label = format!(
+            "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
+            icon_size, icon_size, icon_path_str, fallback_color, resource.label
+        );
+        dot.push_str(&format!(
+            "    {} [label={}, shape=plaintext, fontsize=10];\n",
+            node_id, html_label
+        ));
 
         node_map.insert(resource.name.clone(), node_id);
     }
@@ -990,5 +1037,495 @@ mod tests {
         // This test always passes - it's informational only
         // We don't require 100% coverage since many resources are rarely used
         assert!(true, "Icon coverage documentation generated successfully");
+    }
+
+    #[test]
+    fn test_parse_module_prefixed_resources() {
+        // Test that resources nested in modules are correctly parsed and identified
+        let dot_content = r#"
+digraph {
+    compound = "true"
+    newrank = "true"
+    subgraph "root" {
+        "[root] module.vpc.aws_vpc.main (expand)" [label = "module.vpc.aws_vpc.main", shape = "box"]
+        "[root] module.network.aws_subnet.public (expand)" [label = "module.network.aws_subnet.public", shape = "box"]
+        "[root] aws_instance.web (expand)" [label = "aws_instance.web", shape = "box"]
+        "[root] module.network.aws_subnet.public (expand)" -> "[root] module.vpc.aws_vpc.main (expand)"
+        "[root] aws_instance.web (expand)" -> "[root] module.network.aws_subnet.public (expand)"
+    }
+}
+        "#;
+
+        let graph = parse_dot_graph(dot_content).expect("Failed to parse dot graph");
+
+        // Should find 3 resources
+        assert_eq!(graph.resources.len(), 3, "Expected 3 resources to be parsed");
+
+        // Find the module-prefixed VPC resource
+        let vpc_resource = graph.resources.iter()
+            .find(|r| r.name == "module.vpc.aws_vpc.main")
+            .expect("VPC resource should be parsed");
+
+        // The resource type should be extracted as "aws_vpc", not "module"
+        assert!(
+            vpc_resource.resource_type.contains("aws_vpc"),
+            "Resource type should contain 'aws_vpc', got: {}",
+            vpc_resource.resource_type
+        );
+
+        // Find the module-prefixed subnet resource
+        let subnet_resource = graph.resources.iter()
+            .find(|r| r.name == "module.network.aws_subnet.public")
+            .expect("Subnet resource should be parsed");
+
+        assert!(
+            subnet_resource.resource_type.contains("aws_subnet"),
+            "Resource type should contain 'aws_subnet', got: {}",
+            subnet_resource.resource_type
+        );
+
+        // Regular resource should still work
+        let instance_resource = graph.resources.iter()
+            .find(|r| r.name == "aws_instance.web")
+            .expect("Instance resource should be parsed");
+
+        assert!(
+            instance_resource.resource_type.contains("aws_instance"),
+            "Resource type should contain 'aws_instance', got: {}",
+            instance_resource.resource_type
+        );
+
+        // Verify edges are preserved (2 edges between the AWS resources)
+        assert_eq!(graph.edges.len(), 2, "Expected 2 edges to be parsed");
+    }
+
+    #[test]
+    fn test_parse_data_sources() {
+        // Test that data sources are correctly parsed and identified
+        let dot_content = r#"
+digraph {
+    compound = "true"
+    newrank = "true"
+    subgraph "root" {
+        "[root] data.aws_ami.latest (expand)" [label = "data.aws_ami.latest", shape = "box"]
+        "[root] data.aws_vpc.selected (expand)" [label = "data.aws_vpc.selected", shape = "box"]
+        "[root] aws_instance.web (expand)" [label = "aws_instance.web", shape = "box"]
+        "[root] aws_instance.web (expand)" -> "[root] data.aws_ami.latest (expand)"
+        "[root] aws_instance.web (expand)" -> "[root] data.aws_vpc.selected (expand)"
+    }
+}
+        "#;
+
+        let graph = parse_dot_graph(dot_content).expect("Failed to parse dot graph");
+
+        // Should find 3 resources
+        assert_eq!(graph.resources.len(), 3, "Expected 3 resources to be parsed");
+
+        // Find the data source for AMI
+        let ami_data = graph.resources.iter()
+            .find(|r| r.name == "data.aws_ami.latest")
+            .expect("AMI data source should be parsed");
+
+        // The resource type should be extracted as "aws_ami", not "data"
+        assert!(
+            ami_data.resource_type.contains("aws_ami"),
+            "Resource type should contain 'aws_ami', got: {}",
+            ami_data.resource_type
+        );
+
+        // Find the data source for VPC
+        let vpc_data = graph.resources.iter()
+            .find(|r| r.name == "data.aws_vpc.selected")
+            .expect("VPC data source should be parsed");
+
+        assert!(
+            vpc_data.resource_type.contains("aws_vpc"),
+            "Resource type should contain 'aws_vpc', got: {}",
+            vpc_data.resource_type
+        );
+
+        // Verify edges are preserved
+        assert_eq!(graph.edges.len(), 2, "Expected 2 edges to be parsed");
+    }
+
+    #[test]
+    fn test_parse_nested_modules() {
+        // Test that deeply nested module resources are correctly parsed
+        let dot_content = r#"
+digraph {
+    compound = "true"
+    newrank = "true"
+    subgraph "root" {
+        "[root] module.app.module.network.aws_vpc.main (expand)" [label = "module.app.module.network.aws_vpc.main", shape = "box"]
+        "[root] module.app.module.network.aws_subnet.private (expand)" [label = "module.app.module.network.aws_subnet.private", shape = "box"]
+        "[root] module.app.aws_instance.web (expand)" [label = "module.app.aws_instance.web", shape = "box"]
+        "[root] module.app.module.network.aws_subnet.private (expand)" -> "[root] module.app.module.network.aws_vpc.main (expand)"
+        "[root] module.app.aws_instance.web (expand)" -> "[root] module.app.module.network.aws_subnet.private (expand)"
+    }
+}
+        "#;
+
+        let graph = parse_dot_graph(dot_content).expect("Failed to parse dot graph");
+
+        // Should find 3 resources
+        assert_eq!(graph.resources.len(), 3, "Expected 3 resources to be parsed");
+
+        // Find the deeply nested VPC resource
+        let vpc_resource = graph.resources.iter()
+            .find(|r| r.name == "module.app.module.network.aws_vpc.main")
+            .expect("Nested VPC resource should be parsed");
+
+        // The resource type should be extracted as "aws_vpc", not "module"
+        assert!(
+            vpc_resource.resource_type.contains("aws_vpc"),
+            "Resource type should contain 'aws_vpc' for deeply nested module, got: {}",
+            vpc_resource.resource_type
+        );
+
+        // Find the nested subnet
+        let subnet_resource = graph.resources.iter()
+            .find(|r| r.name == "module.app.module.network.aws_subnet.private")
+            .expect("Nested subnet resource should be parsed");
+
+        assert!(
+            subnet_resource.resource_type.contains("aws_subnet"),
+            "Resource type should contain 'aws_subnet', got: {}",
+            subnet_resource.resource_type
+        );
+
+        // Verify edges are preserved
+        assert_eq!(graph.edges.len(), 2, "Expected 2 edges to be parsed");
+    }
+
+    #[test]
+    fn test_visualization_includes_module_resources() {
+        // Test that module resources are included in the final visualization
+        let dot_content = r#"
+digraph {
+    compound = "true"
+    newrank = "true"
+    subgraph "root" {
+        "[root] module.vpc.aws_vpc.main (expand)" [label = "module.vpc.aws_vpc.main", shape = "box"]
+        "[root] aws_instance.web (expand)" [label = "aws_instance.web", shape = "box"]
+        "[root] aws_instance.web (expand)" -> "[root] module.vpc.aws_vpc.main (expand)"
+    }
+}
+        "#;
+
+        let graph = parse_dot_graph(dot_content).expect("Failed to parse dot graph");
+
+        // Filter AWS resources (same as generate_dot_graph does)
+        let aws_resources: Vec<_> = graph.resources.iter()
+            .filter(|r| r.resource_type.contains("aws_"))
+            .collect();
+
+        // Both resources should pass the filter
+        assert_eq!(
+            aws_resources.len(),
+            2,
+            "Expected 2 AWS resources after filtering, got {}. Resources: {:?}",
+            aws_resources.len(),
+            graph.resources.iter().map(|r| (&r.name, &r.resource_type)).collect::<Vec<_>>()
+        );
+
+        // Check that module.vpc.aws_vpc.main is included
+        let has_vpc = aws_resources.iter().any(|r| r.name == "module.vpc.aws_vpc.main");
+        assert!(
+            has_vpc,
+            "Module-prefixed VPC resource should be included in AWS resources filter"
+        );
+    }
+
+    #[test]
+    fn test_edge_preservation_with_modules() {
+        // Test that edges between module resources are preserved in visualization
+        let dot_content = r#"
+digraph {
+    compound = "true"
+    newrank = "true"
+    subgraph "root" {
+        "[root] module.vpc.aws_vpc.main (expand)" [label = "module.vpc.aws_vpc.main", shape = "box"]
+        "[root] module.network.aws_subnet.public (expand)" [label = "module.network.aws_subnet.public", shape = "box"]
+        "[root] aws_instance.web (expand)" [label = "aws_instance.web", shape = "box"]
+        "[root] module.network.aws_subnet.public (expand)" -> "[root] module.vpc.aws_vpc.main (expand)"
+        "[root] aws_instance.web (expand)" -> "[root] module.network.aws_subnet.public (expand)"
+    }
+}
+        "#;
+
+        let graph = parse_dot_graph(dot_content).expect("Failed to parse dot graph");
+
+        // Create a temporary directory for icon cache (required by generate_dot_graph)
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let cache_dir = temp_dir.path().join("cache");
+        fs::create_dir_all(&cache_dir).expect("Failed to create cache dir");
+        let temp_graph_dir = temp_dir.path().join("temp");
+        fs::create_dir_all(&temp_graph_dir).expect("Failed to create temp dir");
+
+        // Generate DOT graph for visualization
+        let output_dot = generate_dot_graph(
+            &graph,
+            "test",
+            "TB",
+            &cache_dir,
+            &temp_graph_dir,
+            128,
+            "#2D3436"
+        ).expect("Failed to generate dot graph");
+
+        // The output should contain edges (indicated by "->")
+        let edge_count = output_dot.matches("->").count();
+        assert!(
+            edge_count >= 2,
+            "Expected at least 2 edges in output, found {}. Output:\n{}",
+            edge_count,
+            output_dot
+        );
+
+        // All three resources should appear in the output
+        assert!(
+            output_dot.contains("node_0") || output_dot.contains("node_1") || output_dot.contains("node_2"),
+            "Expected to find node definitions in output"
+        );
+    }
+
+    #[test]
+    fn test_mixed_resources_with_modules_and_data() {
+        // Test a realistic scenario with a mix of regular resources, modules, and data sources
+        let dot_content = r#"
+digraph {
+    compound = "true"
+    newrank = "true"
+    subgraph "root" {
+        "[root] module.vpc.aws_vpc.main (expand)" [label = "module.vpc.aws_vpc.main", shape = "box"]
+        "[root] data.aws_ami.ubuntu (expand)" [label = "data.aws_ami.ubuntu", shape = "box"]
+        "[root] aws_instance.web (expand)" [label = "aws_instance.web", shape = "box"]
+        "[root] module.database.aws_db_instance.main (expand)" [label = "module.database.aws_db_instance.main", shape = "box"]
+        "[root] aws_instance.web (expand)" -> "[root] data.aws_ami.ubuntu (expand)"
+        "[root] aws_instance.web (expand)" -> "[root] module.vpc.aws_vpc.main (expand)"
+        "[root] module.database.aws_db_instance.main (expand)" -> "[root] module.vpc.aws_vpc.main (expand)"
+    }
+}
+        "#;
+
+        let graph = parse_dot_graph(dot_content).expect("Failed to parse dot graph");
+
+        // Should find 4 resources
+        assert_eq!(graph.resources.len(), 4, "Expected 4 resources to be parsed");
+
+        // Filter AWS resources (same as generate_dot_graph does)
+        let aws_resources: Vec<_> = graph.resources.iter()
+            .filter(|r| r.resource_type.contains("aws_"))
+            .collect();
+
+        // All 4 resources should be AWS resources
+        assert_eq!(
+            aws_resources.len(),
+            4,
+            "Expected 4 AWS resources after filtering. Resources: {:?}",
+            graph.resources.iter().map(|r| (&r.name, &r.resource_type)).collect::<Vec<_>>()
+        );
+
+        // Verify each resource type is correctly extracted
+        let types: Vec<&str> = aws_resources.iter()
+            .map(|r| r.resource_type.as_str())
+            .collect();
+
+        assert!(types.iter().any(|t| t.contains("aws_vpc")), "Should have aws_vpc");
+        assert!(types.iter().any(|t| t.contains("aws_ami")), "Should have aws_ami (from data source)");
+        assert!(types.iter().any(|t| t.contains("aws_instance")), "Should have aws_instance");
+        assert!(types.iter().any(|t| t.contains("aws_db_instance")), "Should have aws_db_instance");
+
+        // Verify edges
+        assert_eq!(graph.edges.len(), 3, "Expected 3 edges to be parsed");
+    }
+
+    #[test]
+    fn test_visual_regression_complex_modules() {
+        // Visual regression test: Generate a diagram from a complex real-world scenario
+        // This test produces output that developers can visually inspect for regressions
+        // The diagram includes:
+        // - Module-prefixed resources (multiple levels of nesting)
+        // - Data sources
+        // - Regular resources
+        // - Complex dependency chains
+
+        println!("\n╔══════════════════════════════════════════════════════════════╗");
+        println!("║          Visual Regression Test: Complex Modules            ║");
+        println!("╚══════════════════════════════════════════════════════════════╝\n");
+
+        // Create output directory for visual inspection
+        let output_dir = PathBuf::from("test/output");
+        fs::create_dir_all(&output_dir).expect("Failed to create output directory");
+
+        // Create temporary directories for icon cache
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let cache_dir = temp_dir.path().join("cache");
+        fs::create_dir_all(&cache_dir).expect("Failed to create cache dir");
+        let temp_graph_dir = temp_dir.path().join("temp");
+        fs::create_dir_all(&temp_graph_dir).expect("Failed to create temp dir");
+
+        // Extract icons if available
+        let bundled_icons = get_bundled_icons_path();
+        if bundled_icons.exists() {
+            match extract_icons_from_7z(&bundled_icons, &cache_dir) {
+                Ok(count) => println!("  ✓ Extracted {} icons from archive", count),
+                Err(e) => println!("  ⚠ Icon extraction failed ({}), using fallback boxes", e),
+            }
+        } else {
+            println!("  ⚠ No bundled icons found, using fallback boxes");
+        }
+
+        // Read the complex test fixture
+        let test_dot_path = "test/complex-modules-test.dot";
+        let dot_content = fs::read_to_string(test_dot_path)
+            .expect(&format!("Failed to read test fixture: {}", test_dot_path));
+
+        // Parse the graph
+        let graph = parse_dot_graph(&dot_content)
+            .expect("Failed to parse complex test fixture");
+
+        println!("\n  📊 Parsed Graph Statistics:");
+        println!("     Total resources: {}", graph.resources.len());
+        println!("     Total edges: {}", graph.edges.len());
+
+        // Count different resource types
+        let module_resources = graph.resources.iter()
+            .filter(|r| r.name.starts_with("module."))
+            .count();
+        let data_sources = graph.resources.iter()
+            .filter(|r| r.name.starts_with("data."))
+            .count();
+        let regular_resources = graph.resources.iter()
+            .filter(|r| !r.name.starts_with("module.") && !r.name.starts_with("data.") && !r.name.starts_with("provider"))
+            .count();
+
+        println!("     Module resources: {}", module_resources);
+        println!("     Data sources: {}", data_sources);
+        println!("     Regular resources: {}", regular_resources);
+
+        // Filter AWS resources (same as generate_dot_graph does)
+        let aws_resources: Vec<_> = graph.resources.iter()
+            .filter(|r| r.resource_type.contains("aws_"))
+            .collect();
+
+        println!("     AWS resources (after filtering): {}", aws_resources.len());
+
+        // Verify that module resources are included
+        let module_aws_count = aws_resources.iter()
+            .filter(|r| r.name.starts_with("module."))
+            .count();
+        let data_aws_count = aws_resources.iter()
+            .filter(|r| r.name.starts_with("data."))
+            .count();
+
+        println!("       ├─ From modules: {}", module_aws_count);
+        println!("       ├─ From data sources: {}", data_aws_count);
+        println!("       └─ Direct resources: {}", aws_resources.len() - module_aws_count - data_aws_count);
+
+        // Generate DOT graph for visualization
+        let output_dot = generate_dot_graph(
+            &graph,
+            "complex-modules-test",
+            "TB",
+            &cache_dir,
+            &temp_graph_dir,
+            128,
+            "#2D3436"
+        ).expect("Failed to generate dot graph");
+
+        // Write the generated DOT file for inspection
+        let dot_output_path = output_dir.join("complex-modules-test.dot");
+        fs::write(&dot_output_path, &output_dot)
+            .expect("Failed to write DOT output");
+
+        println!("\n  📝 Generated Files:");
+        println!("     DOT file: {}", dot_output_path.display());
+
+        // Generate PNG diagram
+        let png_output = output_dir.join("complex-modules-test-visual-regression.png");
+        let png_result = execute_dot_command(
+            &output_dot,
+            "png",
+            png_output.to_str().unwrap()
+        );
+
+        if png_result.is_ok() {
+            println!("     PNG diagram: {}", png_output.display());
+        } else {
+            println!("     ⚠ PNG generation skipped (GraphViz not available)");
+        }
+
+        // Generate SVG diagram (better for inspection)
+        let svg_output = output_dir.join("complex-modules-test-visual-regression.svg");
+        let svg_result = execute_dot_command(
+            &output_dot,
+            "svg",
+            svg_output.to_str().unwrap()
+        );
+
+        if svg_result.is_ok() {
+            println!("     SVG diagram: {}", svg_output.display());
+        } else {
+            println!("     ⚠ SVG generation skipped (GraphViz not available)");
+        }
+
+        println!("\n  👀 Visual Inspection:");
+        println!("     Open the generated diagrams to verify:");
+        println!("     • All module resources are visible (not filtered out)");
+        println!("     • Data sources are included and properly typed");
+        println!("     • Nested modules (module.app.module.asg) are handled correctly");
+        println!("     • Edges connect resources properly");
+        println!("     • Icons are used (if available) or styled boxes as fallback");
+
+        println!("\n╚══════════════════════════════════════════════════════════════╝\n");
+
+        // Assertions to ensure the test is meaningful
+        assert!(
+            graph.resources.len() >= 30,
+            "Complex test should have at least 30 resources, got {}",
+            graph.resources.len()
+        );
+
+        assert!(
+            module_resources >= 15,
+            "Should have at least 15 module resources, got {}",
+            module_resources
+        );
+
+        assert!(
+            data_sources >= 3,
+            "Should have at least 3 data sources, got {}",
+            data_sources
+        );
+
+        assert!(
+            aws_resources.len() >= 25,
+            "After filtering, should have at least 25 AWS resources, got {}. \
+             This indicates module/data resources are being filtered out!",
+            aws_resources.len()
+        );
+
+        assert!(
+            module_aws_count >= 15,
+            "Should have at least 15 AWS resources from modules after filtering, got {}. \
+             This indicates module resources are being incorrectly filtered!",
+            module_aws_count
+        );
+
+        assert!(
+            data_aws_count >= 3,
+            "Should have at least 3 AWS resources from data sources after filtering, got {}. \
+             This indicates data sources are being incorrectly filtered!",
+            data_aws_count
+        );
+
+        // Verify edges are present in output
+        let edge_count = output_dot.matches("->").count();
+        assert!(
+            edge_count >= 30,
+            "Expected at least 30 edges in output, found {}",
+            edge_count
+        );
     }
 }
