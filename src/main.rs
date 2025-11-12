@@ -606,10 +606,11 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
         };
 
         // Use the same HTML structure for all resources (icon or fallback)
+        // Text color matches the service color (not the edge color)
         let icon_path_str = final_png_path.to_string_lossy();
         let html_label = format!(
             "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
-            icon_size, icon_size, icon_path_str, color, resource.label
+            icon_size, icon_size, icon_path_str, fallback_color, resource.label
         );
         dot.push_str(&format!(
             "    {} [label={}, shape=plaintext, fontsize=10];\n",
