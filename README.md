@@ -4,6 +4,15 @@
 
 A Rust CLI utility that transforms Terraform/OpenTofu graph output into beautiful infrastructure diagrams.
 
+> **⚠️ BETA STATUS**
+> This project is currently in active development (beta). While core functionality is stable, the API and features may change.
+>
+> **For developers:**
+> - **Active development** happens on the `develop` branch
+> - **Latest stable code** is on the `main` branch
+> - To contribute or test cutting-edge features, please check out the `develop` branch
+> - For production use, we recommend waiting for the 1.0 release or testing thoroughly in your environment
+
 ## Overview
 
 Agedashi is a Rust command-line tool that reads Terraform/OpenTofu graph output and automatically generates visual architecture diagrams. It focuses on AWS resources and creates professional-looking infrastructure diagrams with minimal effort.
@@ -46,14 +55,35 @@ The diagram shows AWS resources with official AWS Architecture Icons, clean layo
 
 ## Installation
 
-### From Source
+> **Note:** Agedashi is currently in beta. There are no published package releases yet. Installation is currently only available by building from source.
 
+### From Source (Recommended for Beta)
+
+For the latest stable code:
 ```bash
-git clone https://github.com/yourusername/agedashi.git
+git clone https://github.com/ltomes/Agedashi.git
 cd agedashi
+git checkout main
 cargo build --release
 sudo cp target/release/agedashi /usr/local/bin/
 ```
+
+For the latest development features (bleeding edge):
+```bash
+git clone https://github.com/ltomes/Agedashi.git
+cd agedashi
+git checkout develop
+cargo build --release
+sudo cp target/release/agedashi /usr/local/bin/
+```
+
+### Future Installation Options
+
+Once Agedashi reaches v1.0, we plan to provide:
+- Pre-compiled binaries for Linux, macOS, and Windows
+- Installation via cargo: `cargo install agedashi`
+- Homebrew formula for macOS
+- Package manager support for major Linux distributions
 
 ## Usage
 
@@ -255,6 +285,17 @@ Contributions are welcome! Here are some ways you can help:
 - Improve the DOT parser
 - Add clustering/grouping features
 - Improve error messages
+
+### Development Workflow
+
+1. Fork the repository
+2. Clone your fork locally
+3. **Create a feature branch from `develop`** (not `main`)
+4. Make your changes and add tests
+5. Ensure tests pass and code builds
+6. Submit a pull request to the `develop` branch
+
+The `develop` branch is where active development happens. The `main` branch contains the latest stable code.
 
 ## Roadmap
 
