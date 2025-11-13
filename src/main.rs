@@ -620,7 +620,7 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
         let icon_path_str = final_png_path.to_string_lossy();
         let escaped_label = escape_html(&resource.label);
         let html_label = format!(
-            "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"&quot;{}&quot;\"/></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
+            "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
             icon_size, icon_size, icon_path_str, fallback_color, escaped_label
         );
         dot.push_str(&format!(
