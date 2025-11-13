@@ -548,6 +548,15 @@ fn get_service_info(resource_type: &str) -> (&str, &str, &str, &str) {
     }
 }
 
+/// Escapes special HTML/XML characters in text to prevent GraphViz parsing errors
+fn escape_html(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
+}
+
 fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path, temp_dir: &Path, icon_size: u32, color: &str) -> Result<String> {
     let mut dot = String::new();
 
@@ -609,24 +618,37 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
         // Use the same HTML structure for all resources (icon or fallback)
         // Text color matches the service color (not the edge color)
         let icon_path_str = final_png_path.to_string_lossy();
+        let escaped_label = escape_html(&resource.label);
         let html_label = format!(
-            "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
-            icon_size, icon_size, icon_path_str, fallback_color, resource.label
+            "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"&quot;{}&quot;\"/></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
+            icon_size, icon_size, icon_path_str, fallback_color, escaped_label
         );
         dot.push_str(&format!(
             "    {} [label={}, shape=plaintext, fontsize=10];\n",
             node_id, html_label
         ));
 
-        node_map.insert(resource.name.clone(), node_id);
+        // Check for duplicate resource names
+        if let Some(existing_id) = node_map.insert(resource.name.clone(), node_id.clone()) {
+            eprintln!("Warning: Duplicate resource name '{}' found. Previous node '{}' will be overwritten by '{}'.",
+                     resource.name, existing_id, node_id);
+        }
     }
 
     dot.push_str("\n");
 
     // Generate edges
     for (from, to) in &graph.edges {
-        if let (Some(from_node), Some(to_node)) = (node_map.get(from), node_map.get(to)) {
-            dot.push_str(&format!("    {} -> {};\n", from_node, to_node));
+        match (node_map.get(from), node_map.get(to)) {
+            (Some(from_node), Some(to_node)) => {
+                dot.push_str(&format!("    {} -> {};\n", from_node, to_node));
+            }
+            (None, _) => {
+                eprintln!("Warning: Edge dropped - source node '{}' not found in node map", from);
+            }
+            (_, None) => {
+                eprintln!("Warning: Edge dropped - target node '{}' not found in node map", to);
+            }
         }
     }
 
