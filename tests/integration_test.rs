@@ -7,16 +7,28 @@ use tempfile::TempDir;
 fn get_binary_path() -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("target");
-    path.push(if cfg!(debug_assertions) {
-        "debug"
+
+    // Try debug first (most common for tests), then release
+    let debug_path = path.join("debug").join("agedashi");
+    let release_path = path.join("release").join("agedashi");
+
+    #[cfg(windows)]
+    let (debug_path, release_path) = {
+        (
+            debug_path.with_extension("exe"),
+            release_path.with_extension("exe"),
+        )
+    };
+
+    // Return the path that exists, preferring debug
+    if debug_path.exists() {
+        debug_path
+    } else if release_path.exists() {
+        release_path
     } else {
-        "release"
-    });
-    path.push("agedashi");
-    if cfg!(windows) {
-        path.set_extension("exe");
+        // Default to debug if neither exists (will fail with better error)
+        debug_path
     }
-    path
 }
 
 /// Helper to run agedashi with given input and arguments
