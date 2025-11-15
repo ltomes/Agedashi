@@ -87,14 +87,8 @@ jobs:
       - name: Build
         run: cargo build --verbose
 
-      - name: Run unit tests
-        run: cargo test --lib --verbose
-
-      - name: Run integration tests
-        run: cargo test --test '*' --verbose
-
-      - name: Run doc tests
-        run: cargo test --doc --verbose
+      - name: Run all tests
+        run: cargo test --verbose
 
       - name: Build release binary
         run: cargo build --release --verbose
@@ -224,7 +218,7 @@ jobs:
         run: cargo install cargo-tarpaulin
 
       - name: Generate coverage
-        run: cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
+        run: cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out xml --bins --tests
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -234,7 +228,7 @@ jobs:
           files: ./cobertura.xml
 
       - name: Generate coverage report
-        run: cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out html
+        run: cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out html --bins --tests
 
       - name: Upload coverage HTML
         uses: actions/upload-artifact@v4

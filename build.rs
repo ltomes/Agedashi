@@ -16,12 +16,28 @@ fn main() {
     // For now, we'll generate a manifest of available icons
 
     let icon_names = vec![
-        "ec2", "lambda", "ecs", "eks", "autoscaling",
-        "rds", "dynamodb", "elasticache", "redshift",
-        "elb", "vpc", "subnet", "route53", "cloudfront", "apigateway",
-        "s3", "ebs", "efs",
-        "iam", "kms",
-        "sns", "sqs",
+        "ec2",
+        "lambda",
+        "ecs",
+        "eks",
+        "autoscaling",
+        "rds",
+        "dynamodb",
+        "elasticache",
+        "redshift",
+        "elb",
+        "vpc",
+        "subnet",
+        "route53",
+        "cloudfront",
+        "apigateway",
+        "s3",
+        "ebs",
+        "efs",
+        "iam",
+        "kms",
+        "sns",
+        "sqs",
         "kinesis",
     ];
 
@@ -33,7 +49,10 @@ fn main() {
     for name in icon_names {
         let icon_path = format!("icons/{}.png", name);
         if Path::new(&icon_path).exists() {
-            code.push_str(&format!("    icons.insert(\"{}\", include_bytes!(\"../{}\"));\n", name, icon_path));
+            code.push_str(&format!(
+                "    icons.insert(\"{}\", include_bytes!(\"../{}\"));\n",
+                name, icon_path
+            ));
         }
     }
 

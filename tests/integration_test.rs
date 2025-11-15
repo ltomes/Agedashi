@@ -1,13 +1,17 @@
-use std::process::Command;
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 use tempfile::TempDir;
 
 /// Helper function to get the path to the compiled binary
 fn get_binary_path() -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.push("target");
-    path.push(if cfg!(debug_assertions) { "debug" } else { "release" });
+    path.push(if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "release"
+    });
     path.push("agedashi");
     if cfg!(windows) {
         path.set_extension("exe");
@@ -22,8 +26,8 @@ fn run_agedashi(input: &str, args: &[&str]) -> std::process::Output {
     cmd.args(args);
 
     // Write input to stdin
-    use std::process::Stdio;
     use std::io::Write;
+    use std::process::Stdio;
 
     cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -32,10 +36,14 @@ fn run_agedashi(input: &str, args: &[&str]) -> std::process::Output {
     let mut child = cmd.spawn().expect("Failed to spawn agedashi process");
 
     if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(input.as_bytes()).expect("Failed to write to stdin");
+        stdin
+            .write_all(input.as_bytes())
+            .expect("Failed to write to stdin");
     }
 
-    child.wait_with_output().expect("Failed to wait for agedashi")
+    child
+        .wait_with_output()
+        .expect("Failed to wait for agedashi")
 }
 
 #[test]
@@ -78,8 +86,8 @@ fn test_sample_graph_png_generation() {
     let output_name = "test-integration-png";
 
     // Read sample graph
-    let sample_graph = fs::read_to_string("test/sample-graph.dot")
-        .expect("Failed to read sample-graph.dot");
+    let sample_graph =
+        fs::read_to_string("test/sample-graph.dot").expect("Failed to read sample-graph.dot");
 
     // Run in temp directory
     std::env::set_current_dir(&temp_dir).expect("Failed to change directory");
@@ -107,8 +115,8 @@ fn test_sample_graph_svg_generation() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let output_name = "test-integration-svg";
 
-    let sample_graph = fs::read_to_string("test/sample-graph.dot")
-        .expect("Failed to read sample-graph.dot");
+    let sample_graph =
+        fs::read_to_string("test/sample-graph.dot").expect("Failed to read sample-graph.dot");
 
     std::env::set_current_dir(&temp_dir).expect("Failed to change directory");
 
@@ -125,22 +133,25 @@ fn test_sample_graph_svg_generation() {
 
     // Verify SVG content
     let svg_content = fs::read_to_string(&output_file).expect("Failed to read SVG");
-    assert!(svg_content.contains("<svg"), "SVG file doesn't contain valid SVG markup");
+    assert!(
+        svg_content.contains("<svg"),
+        "SVG file doesn't contain valid SVG markup"
+    );
 }
 
 #[test]
 fn test_direction_parameter() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    let sample_graph = fs::read_to_string("test/sample-graph.dot")
-        .expect("Failed to read sample-graph.dot");
+    let sample_graph =
+        fs::read_to_string("test/sample-graph.dot").expect("Failed to read sample-graph.dot");
 
     std::env::set_current_dir(&temp_dir).expect("Failed to change directory");
 
     // Test TB direction
     let output_tb = run_agedashi(
         &sample_graph,
-        &["--output", "png", "--name", "test-tb", "--direction", "TB"]
+        &["--output", "png", "--name", "test-tb", "--direction", "TB"],
     );
     assert!(output_tb.status.success(), "TB direction failed");
     assert!(temp_dir.path().join("test-tb.png").exists());
@@ -148,7 +159,7 @@ fn test_direction_parameter() {
     // Test LR direction
     let output_lr = run_agedashi(
         &sample_graph,
-        &["--output", "png", "--name", "test-lr", "--direction", "LR"]
+        &["--output", "png", "--name", "test-lr", "--direction", "LR"],
     );
     assert!(output_lr.status.success(), "LR direction failed");
     assert!(temp_dir.path().join("test-lr.png").exists());
@@ -158,15 +169,15 @@ fn test_direction_parameter() {
 fn test_all_output_formats() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    let sample_graph = fs::read_to_string("test/sample-graph.dot")
-        .expect("Failed to read sample-graph.dot");
+    let sample_graph =
+        fs::read_to_string("test/sample-graph.dot").expect("Failed to read sample-graph.dot");
 
     std::env::set_current_dir(&temp_dir).expect("Failed to change directory");
 
     for format in &["png", "svg", "pdf", "jpg"] {
         let output = run_agedashi(
             &sample_graph,
-            &["--output", format, "--name", &format!("test-{}", format)]
+            &["--output", format, "--name", &format!("test-{}", format)],
         );
 
         if !output.status.success() {
@@ -195,14 +206,14 @@ fn test_complex_modules() {
         return;
     }
 
-    let complex_graph = fs::read_to_string(complex_modules_path)
-        .expect("Failed to read complex-modules-test.dot");
+    let complex_graph =
+        fs::read_to_string(complex_modules_path).expect("Failed to read complex-modules-test.dot");
 
     std::env::set_current_dir(&temp_dir).expect("Failed to change directory");
 
     let output = run_agedashi(
         &complex_graph,
-        &["--output", "png", "--name", "test-complex-modules"]
+        &["--output", "png", "--name", "test-complex-modules"],
     );
 
     if !output.status.success() {
@@ -212,21 +223,31 @@ fn test_complex_modules() {
     }
 
     let output_file = temp_dir.path().join("test-complex-modules.png");
-    assert!(output_file.exists(), "Complex modules diagram was not created");
+    assert!(
+        output_file.exists(),
+        "Complex modules diagram was not created"
+    );
 }
 
 #[test]
 fn test_custom_color() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    let sample_graph = fs::read_to_string("test/sample-graph.dot")
-        .expect("Failed to read sample-graph.dot");
+    let sample_graph =
+        fs::read_to_string("test/sample-graph.dot").expect("Failed to read sample-graph.dot");
 
     std::env::set_current_dir(&temp_dir).expect("Failed to change directory");
 
     let output = run_agedashi(
         &sample_graph,
-        &["--output", "png", "--name", "test-color", "--color", "#FF0000"]
+        &[
+            "--output",
+            "png",
+            "--name",
+            "test-color",
+            "--color",
+            "#FF0000",
+        ],
     );
 
     assert!(output.status.success(), "Custom color test failed");
@@ -237,8 +258,8 @@ fn test_custom_color() {
 fn test_large_graph_performance() {
     use std::time::Instant;
 
-    let sample_graph = fs::read_to_string("test/sample-graph.dot")
-        .expect("Failed to read sample-graph.dot");
+    let sample_graph =
+        fs::read_to_string("test/sample-graph.dot").expect("Failed to read sample-graph.dot");
 
     // Repeat the graph content to simulate a larger infrastructure
     let large_graph = sample_graph.repeat(5);
@@ -247,10 +268,7 @@ fn test_large_graph_performance() {
     std::env::set_current_dir(&temp_dir).expect("Failed to change directory");
 
     let start = Instant::now();
-    let output = run_agedashi(
-        &large_graph,
-        &["--output", "png", "--name", "test-large"]
-    );
+    let output = run_agedashi(&large_graph, &["--output", "png", "--name", "test-large"]);
     let duration = start.elapsed();
 
     assert!(output.status.success(), "Large graph processing failed");
@@ -267,21 +285,17 @@ fn test_large_graph_performance() {
 fn test_svg_base64_embedding() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    let sample_graph = fs::read_to_string("test/sample-graph.dot")
-        .expect("Failed to read sample-graph.dot");
+    let sample_graph =
+        fs::read_to_string("test/sample-graph.dot").expect("Failed to read sample-graph.dot");
 
     std::env::set_current_dir(&temp_dir).expect("Failed to change directory");
 
-    let output = run_agedashi(
-        &sample_graph,
-        &["--output", "svg", "--name", "test-base64"]
-    );
+    let output = run_agedashi(&sample_graph, &["--output", "svg", "--name", "test-base64"]);
 
     assert!(output.status.success(), "SVG generation failed");
 
     let svg_file = temp_dir.path().join("test-base64.svg");
-    let svg_content = fs::read_to_string(&svg_file)
-        .expect("Failed to read SVG file");
+    let svg_content = fs::read_to_string(&svg_file).expect("Failed to read SVG file");
 
     // Check that images are embedded as base64 data URIs
     assert!(
@@ -294,8 +308,8 @@ fn test_svg_base64_embedding() {
 fn test_debug_mode() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
-    let sample_graph = fs::read_to_string("test/sample-graph.dot")
-        .expect("Failed to read sample-graph.dot");
+    let sample_graph =
+        fs::read_to_string("test/sample-graph.dot").expect("Failed to read sample-graph.dot");
 
     std::env::set_current_dir(&temp_dir).expect("Failed to change directory");
 

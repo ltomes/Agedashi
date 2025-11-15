@@ -25,7 +25,7 @@ Agedashi uses a multi-layered testing strategy with automated CI/CD pipelines to
 
 **Run with**:
 ```bash
-cargo test --lib
+cargo test --bin agedashi
 ```
 
 **Key Tests**:
@@ -106,9 +106,7 @@ include:
 ```
 
 **Tests Run**:
-- Unit tests (`cargo test --lib`)
-- Integration tests (`cargo test --test '*'`)
-- Doc tests (`cargo test --doc`)
+- All tests (`cargo test --verbose`)
 - Release build verification
 
 ##### 3. Test Output Formats
