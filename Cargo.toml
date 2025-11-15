@@ -2,6 +2,7 @@
 name = "agedashi"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.74.0"
 authors = ["ltomes"]
 description = "A Rust CLI tool that transforms Terraform/OpenTofu graph output into beautiful infrastructure diagrams"
 license = "MIT"

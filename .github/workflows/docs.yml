@@ -33,9 +33,12 @@ jobs:
         with:
           path: |
             ~/.cargo/registry/index
+            ~/.cargo/registry/cache
             ~/.cargo/git
             target
           key: ${{ runner.os }}-docs-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-docs-cargo-
 
       - name: Build documentation
         run: |
@@ -218,21 +221,20 @@ jobs:
             docs
           retention-days: 90
 
+      - name: Prepare GitHub Pages content
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          mkdir -p gh-pages/api
+          mkdir -p gh-pages/docs
+          cp -r target/doc/* gh-pages/api/
+          cp -r docs/* gh-pages/docs/
+
       - name: Deploy to GitHub Pages
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./target/doc
-          destination_dir: api
-
-      - name: Deploy coverage docs to GitHub Pages
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
-          keep_files: true
+          publish_dir: ./gh-pages
 
       - name: Comment on PR with documentation
         if: github.event_name == 'pull_request'
