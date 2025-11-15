@@ -2,7 +2,10 @@ name: Documentation
 
 on:
   push:
-    branches: [ "develop", "main" ]
+    branches:
+      - "develop"
+      - "main"
+      - "claude/**"
   pull_request:
     types: [opened, synchronize]
   workflow_dispatch:
