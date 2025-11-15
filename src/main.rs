@@ -14,7 +14,7 @@ use tempfile::NamedTempFile;
 const EMBEDDED_ICONS_ARCHIVE: &[u8] = include_bytes!("../icons/Asset-Package.7z");
 
 #[derive(Parser, Debug)]
-#[command(name = "agedashi")]
+#[command(name = "agedashi", version)]
 #[command(about = "Generate infrastructure diagrams from Terraform/OpenTofu graph output - making tofu pretty!", long_about = None)]
 struct Cli {
     /// Output format (svg, png, pdf, jpg)
