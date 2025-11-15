@@ -944,7 +944,7 @@ mod tests {
         // Parse the test fixture with all AWS resource types
         let test_dot_path = "test/all-aws-resources.dot";
         let dot_content = fs::read_to_string(test_dot_path)
-            .expect(&format!("Failed to read test fixture: {}", test_dot_path));
+            .unwrap_or_else(|_| panic!("Failed to read test fixture: {}", test_dot_path));
 
         let graph = parse_dot_graph(&dot_content).expect("Failed to parse test fixture");
 
@@ -1101,16 +1101,17 @@ mod tests {
             .collect();
 
         // Track resources by icon availability
-        let mut resources_with_icons = std::collections::HashMap::new();
+        let mut resources_with_icons: std::collections::HashMap<&str, Vec<&str>> =
+            std::collections::HashMap::new();
         let mut resources_without_icons = Vec::new();
 
         for resource_type in &all_resources {
-            let (icon_name, service_name, _color, _emoji) = get_service_info(resource_type);
+            let (icon_name, _service_name, _color, _emoji) = get_service_info(resource_type);
 
             if !icon_name.is_empty() {
                 resources_with_icons
                     .entry(icon_name)
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(*resource_type);
             } else {
                 resources_without_icons.push(*resource_type);
@@ -1167,10 +1168,7 @@ mod tests {
             } else {
                 resource.to_string()
             };
-            service_groups
-                .entry(prefix)
-                .or_insert_with(Vec::new)
-                .push(*resource);
+            service_groups.entry(prefix).or_default().push(*resource);
         }
 
         let mut sorted_groups: Vec<_> = service_groups.iter().collect();
@@ -1190,7 +1188,6 @@ mod tests {
 
         // This test always passes - it's informational only
         // We don't require 100% coverage since many resources are rarely used
-        assert!(true, "Icon coverage documentation generated successfully");
     }
 
     #[test]
@@ -1593,7 +1590,7 @@ digraph {
         // Read the complex test fixture
         let test_dot_path = "test/complex-modules-test.dot";
         let dot_content = fs::read_to_string(test_dot_path)
-            .expect(&format!("Failed to read test fixture: {}", test_dot_path));
+            .unwrap_or_else(|_| panic!("Failed to read test fixture: {}", test_dot_path));
 
         // Parse the graph
         let graph = parse_dot_graph(&dot_content).expect("Failed to parse complex test fixture");
