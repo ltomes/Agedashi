@@ -13,8 +13,47 @@ use tempfile::NamedTempFile;
 // This ensures the icons are always available, even when installed via cargo install
 const EMBEDDED_ICONS_ARCHIVE: &[u8] = include_bytes!("../icons/Asset-Package.7z");
 
+// Build-time metadata for version information
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const GIT_HASH: &str = env!("GIT_HASH");
+const GIT_BRANCH: &str = env!("GIT_BRANCH");
+const GIT_DIRTY: &str = env!("GIT_DIRTY");
+const BUILD_TIME: &str = env!("BUILD_TIME");
+const BUILD_TARGET: &str = env!("BUILD_TARGET");
+const BUILD_PROFILE: &str = env!("BUILD_PROFILE");
+
+/// Generate detailed version information
+fn get_long_version() -> &'static str {
+    use std::sync::OnceLock;
+    static LONG_VERSION: OnceLock<String> = OnceLock::new();
+
+    LONG_VERSION.get_or_init(|| {
+        let dirty_marker = if GIT_DIRTY == "true" { " (dirty)" } else { "" };
+        format!(
+            "{version}
+
+Build Information:
+  Git Commit:    {git_hash}{dirty}
+  Git Branch:    {git_branch}
+  Build Time:    {build_time}
+  Build Profile: {build_profile}
+  Build Target:  {build_target}
+
+Project: https://github.com/ltomes/Agedashi
+Documentation: https://github.com/ltomes/Agedashi/blob/{git_branch}/README.md",
+            version = VERSION,
+            git_hash = GIT_HASH,
+            git_branch = GIT_BRANCH,
+            dirty = dirty_marker,
+            build_time = BUILD_TIME,
+            build_profile = BUILD_PROFILE,
+            build_target = BUILD_TARGET,
+        )
+    })
+}
+
 #[derive(Parser, Debug)]
-#[command(name = "agedashi", version)]
+#[command(name = "agedashi", version = VERSION, long_version = get_long_version())]
 #[command(about = "Generate infrastructure diagrams from Terraform/OpenTofu graph output - making tofu pretty!", long_about = None)]
 struct Cli {
     /// Output format (svg, png, pdf, jpg)
