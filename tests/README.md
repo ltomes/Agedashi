@@ -11,7 +11,7 @@ The test suite is organized into several layers:
 - Test individual functions and parsing logic
 - Test AWS resource type extraction and mapping
 - Test module and data source handling
-- Run with: `cargo test --lib`
+- Run with: `cargo test` (includes all test types)
 
 ### Integration Tests (`tests/`)
 - Test the CLI as a whole, including subprocess execution
@@ -32,14 +32,14 @@ The test suite is organized into several layers:
 cargo test
 ```
 
-### Run only unit tests
-```bash
-cargo test --lib
-```
-
 ### Run only integration tests
 ```bash
 cargo test --test integration_test
+```
+
+### Run only unit tests (in src/main.rs)
+```bash
+cargo test --bin agedashi
 ```
 
 ### Run specific test

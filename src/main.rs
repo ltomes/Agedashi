@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use clap::Parser;
 use regex::Regex;
 use std::collections::HashMap;
@@ -70,23 +70,27 @@ impl TerraformGraph {
 
 fn get_cache_dir() -> Result<PathBuf> {
     let cache_dir = if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(home).join(".cache").join("agedashi").join("icons")
+        PathBuf::from(home)
+            .join(".cache")
+            .join("agedashi")
+            .join("icons")
     } else if let Ok(userprofile) = std::env::var("USERPROFILE") {
-        PathBuf::from(userprofile).join(".cache").join("agedashi").join("icons")
+        PathBuf::from(userprofile)
+            .join(".cache")
+            .join("agedashi")
+            .join("icons")
     } else {
         PathBuf::from("/tmp").join("agedashi").join("icons")
     };
 
-    fs::create_dir_all(&cache_dir)
-        .context("Failed to create cache directory")?;
+    fs::create_dir_all(&cache_dir).context("Failed to create cache directory")?;
 
     Ok(cache_dir)
 }
 
 fn convert_svg_to_png(svg_path: &Path, png_path: &Path, size: u32) -> Result<()> {
     // Read the SVG file
-    let svg_data = fs::read(svg_path)
-        .context("Failed to read SVG file")?;
+    let svg_data = fs::read(svg_path).context("Failed to read SVG file")?;
 
     // Parse the SVG with default options
     let tree = usvg::Tree::from_data(&svg_data, &usvg::Options::default())
@@ -113,7 +117,8 @@ fn convert_svg_to_png(svg_path: &Path, png_path: &Path, size: u32) -> Result<()>
     apply_rounded_corners(&mut pixmap, corner_radius);
 
     // Save as PNG
-    pixmap.save_png(png_path)
+    pixmap
+        .save_png(png_path)
         .map_err(|e| anyhow::anyhow!("Failed to save PNG: {}", e))?;
 
     Ok(())
@@ -283,21 +288,35 @@ fn extract_icons_from_7z(archive_path: &Path, cache_dir: &Path) -> Result<usize>
     eprintln!("Extracting AWS Architecture Icons from bundled archive...");
 
     let icon_names = vec![
-        "ec2", "lambda", "ecs", "eks", "autoscaling",
-        "rds", "dynamodb", "elasticache", "redshift",
-        "elb", "vpc", "subnet", "route53", "cloudfront", "apigateway",
-        "s3", "ebs",
+        "ec2",
+        "lambda",
+        "ecs",
+        "eks",
+        "autoscaling",
+        "rds",
+        "dynamodb",
+        "elasticache",
+        "redshift",
+        "elb",
+        "vpc",
+        "subnet",
+        "route53",
+        "cloudfront",
+        "apigateway",
+        "s3",
+        "ebs",
         // Note: EFS icon not available in bundled AWS Architecture Icons archive
-        "iam", "kms",
-        "sns", "sqs",
+        "iam",
+        "kms",
+        "sns",
+        "sqs",
         "kinesis",
     ];
 
     let mut extracted_count = 0;
 
     // Create a temporary directory for extraction
-    let temp_dir = tempfile::tempdir()
-        .context("Failed to create temporary directory")?;
+    let temp_dir = tempfile::tempdir().context("Failed to create temporary directory")?;
 
     // Extract the 7z archive to temp directory
     sevenz_rust::decompress_file(archive_path, temp_dir.path())
@@ -336,7 +355,9 @@ fn find_icon_in_dir(dir: &Path, pattern: &str) -> Option<PathBuf> {
                     // Check if this file matches our search pattern and is an SVG
                     if filename.contains(pattern) && filename.ends_with(".svg") {
                         // Prefer 64x64 size icons (though SVGs are scalable)
-                        if filename.contains("_64") || path.to_str().map_or(false, |p| p.contains("/64/")) {
+                        if filename.contains("_64")
+                            || path.to_str().map_or(false, |p| p.contains("/64/"))
+                        {
                             return Some(path);
                         }
                     }
@@ -354,20 +375,35 @@ fn find_icon_in_dir(dir: &Path, pattern: &str) -> Option<PathBuf> {
 
 fn download_icons_as_needed(cache_dir: &Path) -> Result<()> {
     let icon_names = vec![
-        "ec2", "lambda", "ecs", "eks", "autoscaling",
-        "rds", "dynamodb", "elasticache", "redshift",
-        "elb", "vpc", "subnet", "route53", "cloudfront", "apigateway",
-        "s3", "ebs",
+        "ec2",
+        "lambda",
+        "ecs",
+        "eks",
+        "autoscaling",
+        "rds",
+        "dynamodb",
+        "elasticache",
+        "redshift",
+        "elb",
+        "vpc",
+        "subnet",
+        "route53",
+        "cloudfront",
+        "apigateway",
+        "s3",
+        "ebs",
         // Note: EFS icon not available in bundled AWS Architecture Icons archive
-        "iam", "kms",
-        "sns", "sqs",
+        "iam",
+        "kms",
+        "sns",
+        "sqs",
         "kinesis",
     ];
 
     // Check if we need to extract any icons (SVG format)
-    let needs_extraction = icon_names.iter().any(|name| {
-        !cache_dir.join(format!("{}.svg", name)).exists()
-    });
+    let needs_extraction = icon_names
+        .iter()
+        .any(|name| !cache_dir.join(format!("{}.svg", name)).exists());
 
     if !needs_extraction {
         return Ok(()); // All icons already cached
@@ -385,13 +421,15 @@ fn download_icons_as_needed(cache_dir: &Path) -> Result<()> {
     } else {
         // Use the embedded archive (production mode - cargo install)
         // Write the embedded archive to a temporary file and extract from it
-        let mut temp_archive = NamedTempFile::new()
-            .context("Failed to create temporary file for embedded icons")?;
+        let mut temp_archive =
+            NamedTempFile::new().context("Failed to create temporary file for embedded icons")?;
 
         // Write using the existing file handle instead of opening a new one
-        temp_archive.write_all(EMBEDDED_ICONS_ARCHIVE)
+        temp_archive
+            .write_all(EMBEDDED_ICONS_ARCHIVE)
             .context("Failed to write embedded icons to temporary file")?;
-        temp_archive.flush()
+        temp_archive
+            .flush()
             .context("Failed to flush embedded icons to disk")?;
 
         // Extract from the temp file (temp_archive stays in scope throughout this call)
@@ -410,7 +448,10 @@ fn download_icons_as_needed(cache_dir: &Path) -> Result<()> {
             }
         }
         Err(e) => {
-            eprintln!("Note: Icon extraction failed ({}). Using fallback styled boxes.", e);
+            eprintln!(
+                "Note: Icon extraction failed ({}). Using fallback styled boxes.",
+                e
+            );
         }
     }
 
@@ -557,21 +598,36 @@ fn escape_html(text: &str) -> String {
         .replace('\'', "&apos;")
 }
 
-fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache_dir: &Path, temp_dir: &Path, icon_size: u32, color: &str) -> Result<String> {
+fn generate_dot_graph(
+    graph: &TerraformGraph,
+    name: &str,
+    direction: &str,
+    cache_dir: &Path,
+    temp_dir: &Path,
+    icon_size: u32,
+    color: &str,
+) -> Result<String> {
     let mut dot = String::new();
 
     // Graph header with modern styling
     dot.push_str(&format!("digraph \"{}\" {{\n", name));
-    dot.push_str("    graph [fontname=\"Arial\", fontsize=14, bgcolor=\"transparent\", pad=\"0.5\"];\n");
+    dot.push_str(
+        "    graph [fontname=\"Arial\", fontsize=14, bgcolor=\"transparent\", pad=\"0.5\"];\n",
+    );
     dot.push_str("    node [fontname=\"Arial\", fontsize=11];\n");
-    dot.push_str(&format!("    edge [fontname=\"Arial\", fontsize=10, color=\"{}\", penwidth=2.0, arrowsize=0.7];\n", color));
+    dot.push_str(&format!(
+        "    edge [fontname=\"Arial\", fontsize=10, color=\"{}\", penwidth=2.0, arrowsize=0.7];\n",
+        color
+    ));
     dot.push_str(&format!("    rankdir={};\n", direction));
     dot.push_str("    splines=ortho;\n");
     dot.push_str("    nodesep=1.0;\n");
     dot.push_str("    ranksep=1.5;\n\n");
 
     // Filter AWS resources only
-    let aws_resources: Vec<_> = graph.resources.iter()
+    let aws_resources: Vec<_> = graph
+        .resources
+        .iter()
         .filter(|r| r.resource_type.contains("aws_"))
         .collect();
 
@@ -580,7 +636,8 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
     // Generate nodes
     for (idx, resource) in aws_resources.iter().enumerate() {
         let node_id = format!("node_{}", idx);
-        let (icon_name, _service_name, fallback_color, _fallback_emoji) = get_service_info(&resource.resource_type);
+        let (icon_name, _service_name, fallback_color, _fallback_emoji) =
+            get_service_info(&resource.resource_type);
 
         // Check if we have a cached SVG icon
         let svg_path = cache_dir.join(format!("{}.svg", icon_name));
@@ -603,11 +660,18 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
         } else {
             // Generate colored square SVG and convert to PNG with same rounded corners
             let svg_content = generate_colored_square_svg(fallback_color, icon_size)?;
-            let fallback_svg_path = temp_dir.join(format!("fallback_{}_{}.svg", idx, resource.name.replace(".", "_")));
-            let fallback_png_path = temp_dir.join(format!("fallback_{}_{}.png", idx, resource.name.replace(".", "_")));
+            let fallback_svg_path = temp_dir.join(format!(
+                "fallback_{}_{}.svg",
+                idx,
+                resource.name.replace(".", "_")
+            ));
+            let fallback_png_path = temp_dir.join(format!(
+                "fallback_{}_{}.png",
+                idx,
+                resource.name.replace(".", "_")
+            ));
 
-            fs::write(&fallback_svg_path, svg_content)
-                .context("Failed to write fallback SVG")?;
+            fs::write(&fallback_svg_path, svg_content).context("Failed to write fallback SVG")?;
 
             convert_svg_to_png(&fallback_svg_path, &fallback_png_path, icon_size)
                 .context("Failed to convert fallback SVG to PNG")?;
@@ -644,10 +708,16 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
                 dot.push_str(&format!("    {} -> {};\n", from_node, to_node));
             }
             (None, _) => {
-                eprintln!("Warning: Edge dropped - source node '{}' not found in node map", from);
+                eprintln!(
+                    "Warning: Edge dropped - source node '{}' not found in node map",
+                    from
+                );
             }
             (_, None) => {
-                eprintln!("Warning: Edge dropped - target node '{}' not found in node map", to);
+                eprintln!(
+                    "Warning: Edge dropped - target node '{}' not found in node map",
+                    to
+                );
             }
         }
     }
@@ -658,9 +728,7 @@ fn generate_dot_graph(graph: &TerraformGraph, name: &str, direction: &str, cache
 
 fn execute_dot_command(dot_content: &str, output_format: &str, output_file: &str) -> Result<()> {
     // Check if dot command exists
-    let dot_check = Command::new("dot")
-        .arg("-V")
-        .output();
+    let dot_check = Command::new("dot").arg("-V").output();
 
     if dot_check.is_err() {
         anyhow::bail!(
@@ -714,10 +782,18 @@ fn main() -> Result<()> {
         eprintln!("Warning: No resources found in the Terraform graph.");
     }
 
-    eprintln!("Found {} resources and {} edges", graph.resources.len(), graph.edges.len());
+    eprintln!(
+        "Found {} resources and {} edges",
+        graph.resources.len(),
+        graph.edges.len()
+    );
 
     // Filter for AWS resources
-    let aws_count = graph.resources.iter().filter(|r| r.resource_type.contains("aws_")).count();
+    let aws_count = graph
+        .resources
+        .iter()
+        .filter(|r| r.resource_type.contains("aws_"))
+        .count();
 
     if aws_count == 0 {
         eprintln!("Warning: No AWS resources found to visualize.");
@@ -733,13 +809,33 @@ fn main() -> Result<()> {
     download_icons_as_needed(&cache_dir)?;
 
     // Count how many icons we have available (SVG format)
-    let icon_count = ["ec2", "lambda", "ecs", "eks", "autoscaling",
-                      "rds", "dynamodb", "elasticache", "redshift",
-                      "elb", "vpc", "subnet", "route53", "cloudfront", "apigateway",
-                      "s3", "ebs", "iam", "kms", "sns", "sqs", "kinesis"]
-        .iter()
-        .filter(|name| cache_dir.join(format!("{}.svg", name)).exists())
-        .count();
+    let icon_count = [
+        "ec2",
+        "lambda",
+        "ecs",
+        "eks",
+        "autoscaling",
+        "rds",
+        "dynamodb",
+        "elasticache",
+        "redshift",
+        "elb",
+        "vpc",
+        "subnet",
+        "route53",
+        "cloudfront",
+        "apigateway",
+        "s3",
+        "ebs",
+        "iam",
+        "kms",
+        "sns",
+        "sqs",
+        "kinesis",
+    ]
+    .iter()
+    .filter(|name| cache_dir.join(format!("{}.svg", name)).exists())
+    .count();
 
     if icon_count > 0 {
         eprintln!("Using {} AWS service icons", icon_count);
@@ -748,13 +844,21 @@ fn main() -> Result<()> {
     }
 
     // Create temp directory for PNG conversions
-    let temp_dir = tempfile::tempdir()
-        .context("Failed to create temporary directory for icon conversion")?;
+    let temp_dir =
+        tempfile::tempdir().context("Failed to create temporary directory for icon conversion")?;
 
     // Generate DOT graph with lazy icon conversion
     // Icons are converted from SVG to PNG at 128x128
     // For SVG output, the generated SVG is post-processed to embed PNGs as base64
-    let dot_content = generate_dot_graph(&graph, &cli.name, &cli.direction, &cache_dir, temp_dir.path(), 128, &cli.color)?;
+    let dot_content = generate_dot_graph(
+        &graph,
+        &cli.name,
+        &cli.direction,
+        &cache_dir,
+        temp_dir.path(),
+        128,
+        &cli.color,
+    )?;
 
     // Output file path
     let output_file = format!("{}.{}", cli.name, cli.output);
@@ -783,8 +887,8 @@ fn main() -> Result<()> {
 // Post-process SVG to embed PNG images as base64 data URIs
 fn embed_images_in_svg(svg_file: &str) -> Result<()> {
     // Read the SVG file
-    let svg_content = fs::read_to_string(svg_file)
-        .context(format!("Failed to read SVG file: {}", svg_file))?;
+    let svg_content =
+        fs::read_to_string(svg_file).context(format!("Failed to read SVG file: {}", svg_file))?;
 
     // Replace file paths with base64 data URIs
     let re = Regex::new(r#"xlink:href="([^"]+\.png)""#)?;
@@ -798,7 +902,7 @@ fn embed_images_in_svg(svg_file: &str) -> Result<()> {
             let data_uri = format!("data:image/png;base64,{}", base64_data);
             modified_svg = modified_svg.replace(
                 &format!("xlink:href=\"{}\"", file_path),
-                &format!("xlink:href=\"{}\"", data_uri)
+                &format!("xlink:href=\"{}\"", data_uri),
             );
         }
     }
@@ -830,8 +934,8 @@ mod tests {
         // Ensure icons are available (extract if needed)
         let bundled_icons = get_bundled_icons_path();
         if bundled_icons.exists() {
-            let extracted = extract_icons_from_7z(&bundled_icons, &cache_dir)
-                .expect("Failed to extract icons");
+            let extracted =
+                extract_icons_from_7z(&bundled_icons, &cache_dir).expect("Failed to extract icons");
             println!("Extracted {} icons from archive", extracted);
         } else {
             panic!("Bundled icons not found at {:?}", bundled_icons);
@@ -842,15 +946,32 @@ mod tests {
         let dot_content = fs::read_to_string(test_dot_path)
             .expect(&format!("Failed to read test fixture: {}", test_dot_path));
 
-        let graph = parse_dot_graph(&dot_content)
-            .expect("Failed to parse test fixture");
+        let graph = parse_dot_graph(&dot_content).expect("Failed to parse test fixture");
 
         // Expected resource types that should have icons
         let expected_icon_types = vec![
-            "autoscaling", "cloudfront", "dynamodb", "ebs", "ec2", "ecs",
-            "eks", "elasticache", "elb", "iam", "apigateway",
-            "kinesis", "kms", "lambda", "rds", "redshift", "route53",
-            "s3", "sns", "sqs", "subnet", "vpc"
+            "autoscaling",
+            "cloudfront",
+            "dynamodb",
+            "ebs",
+            "ec2",
+            "ecs",
+            "eks",
+            "elasticache",
+            "elb",
+            "iam",
+            "apigateway",
+            "kinesis",
+            "kms",
+            "lambda",
+            "rds",
+            "redshift",
+            "route53",
+            "s3",
+            "sns",
+            "sqs",
+            "subnet",
+            "vpc",
         ];
 
         // Track which resource types we found and their status
@@ -860,13 +981,16 @@ mod tests {
         let mut missing_icons = Vec::new();
 
         // Filter AWS resources only (same as generate_dot_graph)
-        let aws_resources: Vec<_> = graph.resources.iter()
+        let aws_resources: Vec<_> = graph
+            .resources
+            .iter()
             .filter(|r| r.resource_type.contains("aws_"))
             .collect();
 
         // Try to resolve an icon for each resource in the graph
         for resource in &aws_resources {
-            let (icon_name, _service_name, _color, _fallback_emoji) = get_service_info(&resource.resource_type);
+            let (icon_name, _service_name, _color, _fallback_emoji) =
+                get_service_info(&resource.resource_type);
             found_types.insert(icon_name.to_string());
 
             // Check if we have a cached SVG icon
@@ -962,7 +1086,10 @@ mod tests {
         let resources_content = match fs::read_to_string(resources_file) {
             Ok(content) => content,
             Err(_) => {
-                println!("\nNote: Run scripts/list-aws-resources.sh to generate {}", resources_file);
+                println!(
+                    "\nNote: Run scripts/list-aws-resources.sh to generate {}",
+                    resources_file
+                );
                 println!("Skipping test (resource list not available)");
                 return;
             }
@@ -995,10 +1122,16 @@ mod tests {
         println!("AWS Provider Icon Coverage Report");
         println!("═══════════════════════════════════════════════════");
         println!("Total AWS resources in provider: {}", all_resources.len());
-        println!("Resources with icon mappings: {}", all_resources.len() - resources_without_icons.len());
+        println!(
+            "Resources with icon mappings: {}",
+            all_resources.len() - resources_without_icons.len()
+        );
         println!("Resources without icons: {}", resources_without_icons.len());
-        println!("Coverage: {:.1}%",
-            ((all_resources.len() - resources_without_icons.len()) as f32 / all_resources.len() as f32) * 100.0
+        println!(
+            "Coverage: {:.1}%",
+            ((all_resources.len() - resources_without_icons.len()) as f32
+                / all_resources.len() as f32)
+                * 100.0
         );
 
         println!("\n─────────────────────────────────────────────────");
@@ -1024,7 +1157,8 @@ mod tests {
         println!("─────────────────────────────────────────────────");
 
         // Group by service prefix to identify patterns
-        let mut service_groups: std::collections::HashMap<String, Vec<&str>> = std::collections::HashMap::new();
+        let mut service_groups: std::collections::HashMap<String, Vec<&str>> =
+            std::collections::HashMap::new();
         for resource in &resources_without_icons {
             // Extract service prefix (e.g., "aws_rds" from "aws_rds_cluster")
             let parts: Vec<&str> = resource.split('_').collect();
@@ -1079,10 +1213,16 @@ digraph {
         let graph = parse_dot_graph(dot_content).expect("Failed to parse dot graph");
 
         // Should find 3 resources
-        assert_eq!(graph.resources.len(), 3, "Expected 3 resources to be parsed");
+        assert_eq!(
+            graph.resources.len(),
+            3,
+            "Expected 3 resources to be parsed"
+        );
 
         // Find the module-prefixed VPC resource
-        let vpc_resource = graph.resources.iter()
+        let vpc_resource = graph
+            .resources
+            .iter()
             .find(|r| r.name == "module.vpc.aws_vpc.main")
             .expect("VPC resource should be parsed");
 
@@ -1094,7 +1234,9 @@ digraph {
         );
 
         // Find the module-prefixed subnet resource
-        let subnet_resource = graph.resources.iter()
+        let subnet_resource = graph
+            .resources
+            .iter()
             .find(|r| r.name == "module.network.aws_subnet.public")
             .expect("Subnet resource should be parsed");
 
@@ -1105,7 +1247,9 @@ digraph {
         );
 
         // Regular resource should still work
-        let instance_resource = graph.resources.iter()
+        let instance_resource = graph
+            .resources
+            .iter()
             .find(|r| r.name == "aws_instance.web")
             .expect("Instance resource should be parsed");
 
@@ -1139,10 +1283,16 @@ digraph {
         let graph = parse_dot_graph(dot_content).expect("Failed to parse dot graph");
 
         // Should find 3 resources
-        assert_eq!(graph.resources.len(), 3, "Expected 3 resources to be parsed");
+        assert_eq!(
+            graph.resources.len(),
+            3,
+            "Expected 3 resources to be parsed"
+        );
 
         // Find the data source for AMI
-        let ami_data = graph.resources.iter()
+        let ami_data = graph
+            .resources
+            .iter()
             .find(|r| r.name == "data.aws_ami.latest")
             .expect("AMI data source should be parsed");
 
@@ -1154,7 +1304,9 @@ digraph {
         );
 
         // Find the data source for VPC
-        let vpc_data = graph.resources.iter()
+        let vpc_data = graph
+            .resources
+            .iter()
             .find(|r| r.name == "data.aws_vpc.selected")
             .expect("VPC data source should be parsed");
 
@@ -1188,10 +1340,16 @@ digraph {
         let graph = parse_dot_graph(dot_content).expect("Failed to parse dot graph");
 
         // Should find 3 resources
-        assert_eq!(graph.resources.len(), 3, "Expected 3 resources to be parsed");
+        assert_eq!(
+            graph.resources.len(),
+            3,
+            "Expected 3 resources to be parsed"
+        );
 
         // Find the deeply nested VPC resource
-        let vpc_resource = graph.resources.iter()
+        let vpc_resource = graph
+            .resources
+            .iter()
             .find(|r| r.name == "module.app.module.network.aws_vpc.main")
             .expect("Nested VPC resource should be parsed");
 
@@ -1203,7 +1361,9 @@ digraph {
         );
 
         // Find the nested subnet
-        let subnet_resource = graph.resources.iter()
+        let subnet_resource = graph
+            .resources
+            .iter()
             .find(|r| r.name == "module.app.module.network.aws_subnet.private")
             .expect("Nested subnet resource should be parsed");
 
@@ -1235,7 +1395,9 @@ digraph {
         let graph = parse_dot_graph(dot_content).expect("Failed to parse dot graph");
 
         // Filter AWS resources (same as generate_dot_graph does)
-        let aws_resources: Vec<_> = graph.resources.iter()
+        let aws_resources: Vec<_> = graph
+            .resources
+            .iter()
             .filter(|r| r.resource_type.contains("aws_"))
             .collect();
 
@@ -1245,11 +1407,17 @@ digraph {
             2,
             "Expected 2 AWS resources after filtering, got {}. Resources: {:?}",
             aws_resources.len(),
-            graph.resources.iter().map(|r| (&r.name, &r.resource_type)).collect::<Vec<_>>()
+            graph
+                .resources
+                .iter()
+                .map(|r| (&r.name, &r.resource_type))
+                .collect::<Vec<_>>()
         );
 
         // Check that module.vpc.aws_vpc.main is included
-        let has_vpc = aws_resources.iter().any(|r| r.name == "module.vpc.aws_vpc.main");
+        let has_vpc = aws_resources
+            .iter()
+            .any(|r| r.name == "module.vpc.aws_vpc.main");
         assert!(
             has_vpc,
             "Module-prefixed VPC resource should be included in AWS resources filter"
@@ -1290,8 +1458,9 @@ digraph {
             &cache_dir,
             &temp_graph_dir,
             128,
-            "#2D3436"
-        ).expect("Failed to generate dot graph");
+            "#2D3436",
+        )
+        .expect("Failed to generate dot graph");
 
         // The output should contain edges (indicated by "->")
         let edge_count = output_dot.matches("->").count();
@@ -1304,7 +1473,9 @@ digraph {
 
         // All three resources should appear in the output
         assert!(
-            output_dot.contains("node_0") || output_dot.contains("node_1") || output_dot.contains("node_2"),
+            output_dot.contains("node_0")
+                || output_dot.contains("node_1")
+                || output_dot.contains("node_2"),
             "Expected to find node definitions in output"
         );
     }
@@ -1331,10 +1502,16 @@ digraph {
         let graph = parse_dot_graph(dot_content).expect("Failed to parse dot graph");
 
         // Should find 4 resources
-        assert_eq!(graph.resources.len(), 4, "Expected 4 resources to be parsed");
+        assert_eq!(
+            graph.resources.len(),
+            4,
+            "Expected 4 resources to be parsed"
+        );
 
         // Filter AWS resources (same as generate_dot_graph does)
-        let aws_resources: Vec<_> = graph.resources.iter()
+        let aws_resources: Vec<_> = graph
+            .resources
+            .iter()
             .filter(|r| r.resource_type.contains("aws_"))
             .collect();
 
@@ -1343,18 +1520,35 @@ digraph {
             aws_resources.len(),
             4,
             "Expected 4 AWS resources after filtering. Resources: {:?}",
-            graph.resources.iter().map(|r| (&r.name, &r.resource_type)).collect::<Vec<_>>()
+            graph
+                .resources
+                .iter()
+                .map(|r| (&r.name, &r.resource_type))
+                .collect::<Vec<_>>()
         );
 
         // Verify each resource type is correctly extracted
-        let types: Vec<&str> = aws_resources.iter()
+        let types: Vec<&str> = aws_resources
+            .iter()
             .map(|r| r.resource_type.as_str())
             .collect();
 
-        assert!(types.iter().any(|t| t.contains("aws_vpc")), "Should have aws_vpc");
-        assert!(types.iter().any(|t| t.contains("aws_ami")), "Should have aws_ami (from data source)");
-        assert!(types.iter().any(|t| t.contains("aws_instance")), "Should have aws_instance");
-        assert!(types.iter().any(|t| t.contains("aws_db_instance")), "Should have aws_db_instance");
+        assert!(
+            types.iter().any(|t| t.contains("aws_vpc")),
+            "Should have aws_vpc"
+        );
+        assert!(
+            types.iter().any(|t| t.contains("aws_ami")),
+            "Should have aws_ami (from data source)"
+        );
+        assert!(
+            types.iter().any(|t| t.contains("aws_instance")),
+            "Should have aws_instance"
+        );
+        assert!(
+            types.iter().any(|t| t.contains("aws_db_instance")),
+            "Should have aws_db_instance"
+        );
 
         // Verify edges
         assert_eq!(graph.edges.len(), 3, "Expected 3 edges to be parsed");
@@ -1402,22 +1596,31 @@ digraph {
             .expect(&format!("Failed to read test fixture: {}", test_dot_path));
 
         // Parse the graph
-        let graph = parse_dot_graph(&dot_content)
-            .expect("Failed to parse complex test fixture");
+        let graph = parse_dot_graph(&dot_content).expect("Failed to parse complex test fixture");
 
         println!("\n  📊 Parsed Graph Statistics:");
         println!("     Total resources: {}", graph.resources.len());
         println!("     Total edges: {}", graph.edges.len());
 
         // Count different resource types
-        let module_resources = graph.resources.iter()
+        let module_resources = graph
+            .resources
+            .iter()
             .filter(|r| r.name.starts_with("module."))
             .count();
-        let data_sources = graph.resources.iter()
+        let data_sources = graph
+            .resources
+            .iter()
             .filter(|r| r.name.starts_with("data."))
             .count();
-        let regular_resources = graph.resources.iter()
-            .filter(|r| !r.name.starts_with("module.") && !r.name.starts_with("data.") && !r.name.starts_with("provider"))
+        let regular_resources = graph
+            .resources
+            .iter()
+            .filter(|r| {
+                !r.name.starts_with("module.")
+                    && !r.name.starts_with("data.")
+                    && !r.name.starts_with("provider")
+            })
             .count();
 
         println!("     Module resources: {}", module_resources);
@@ -1425,23 +1628,33 @@ digraph {
         println!("     Regular resources: {}", regular_resources);
 
         // Filter AWS resources (same as generate_dot_graph does)
-        let aws_resources: Vec<_> = graph.resources.iter()
+        let aws_resources: Vec<_> = graph
+            .resources
+            .iter()
             .filter(|r| r.resource_type.contains("aws_"))
             .collect();
 
-        println!("     AWS resources (after filtering): {}", aws_resources.len());
+        println!(
+            "     AWS resources (after filtering): {}",
+            aws_resources.len()
+        );
 
         // Verify that module resources are included
-        let module_aws_count = aws_resources.iter()
+        let module_aws_count = aws_resources
+            .iter()
             .filter(|r| r.name.starts_with("module."))
             .count();
-        let data_aws_count = aws_resources.iter()
+        let data_aws_count = aws_resources
+            .iter()
             .filter(|r| r.name.starts_with("data."))
             .count();
 
         println!("       ├─ From modules: {}", module_aws_count);
         println!("       ├─ From data sources: {}", data_aws_count);
-        println!("       └─ Direct resources: {}", aws_resources.len() - module_aws_count - data_aws_count);
+        println!(
+            "       └─ Direct resources: {}",
+            aws_resources.len() - module_aws_count - data_aws_count
+        );
 
         // Generate DOT graph for visualization
         let output_dot = generate_dot_graph(
@@ -1451,24 +1664,20 @@ digraph {
             &cache_dir,
             &temp_graph_dir,
             128,
-            "#2D3436"
-        ).expect("Failed to generate dot graph");
+            "#2D3436",
+        )
+        .expect("Failed to generate dot graph");
 
         // Write the generated DOT file for inspection
         let dot_output_path = output_dir.join("complex-modules-test.dot");
-        fs::write(&dot_output_path, &output_dot)
-            .expect("Failed to write DOT output");
+        fs::write(&dot_output_path, &output_dot).expect("Failed to write DOT output");
 
         println!("\n  📝 Generated Files:");
         println!("     DOT file: {}", dot_output_path.display());
 
         // Generate PNG diagram
         let png_output = output_dir.join("complex-modules-test-visual-regression.png");
-        let png_result = execute_dot_command(
-            &output_dot,
-            "png",
-            png_output.to_str().unwrap()
-        );
+        let png_result = execute_dot_command(&output_dot, "png", png_output.to_str().unwrap());
 
         if png_result.is_ok() {
             println!("     PNG diagram: {}", png_output.display());
@@ -1478,11 +1687,7 @@ digraph {
 
         // Generate SVG diagram (better for inspection)
         let svg_output = output_dir.join("complex-modules-test-visual-regression.svg");
-        let svg_result = execute_dot_command(
-            &output_dot,
-            "svg",
-            svg_output.to_str().unwrap()
-        );
+        let svg_result = execute_dot_command(&output_dot, "svg", svg_output.to_str().unwrap());
 
         if svg_result.is_ok() {
             println!("     SVG diagram: {}", svg_output.display());

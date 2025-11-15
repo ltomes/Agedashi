@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::fs;
 
 // Note: This benchmark requires the agedashi library to expose its parsing functions
@@ -6,8 +6,8 @@ use std::fs;
 // In a future refactor, we should expose these functions in a library crate
 
 fn benchmark_sample_graph_parsing(c: &mut Criterion) {
-    let sample_graph = fs::read_to_string("test/sample-graph.dot")
-        .expect("Failed to read sample-graph.dot");
+    let sample_graph =
+        fs::read_to_string("test/sample-graph.dot").expect("Failed to read sample-graph.dot");
 
     c.bench_function("parse_sample_graph", |b| {
         b.iter(|| {
@@ -19,8 +19,8 @@ fn benchmark_sample_graph_parsing(c: &mut Criterion) {
 }
 
 fn benchmark_different_graph_sizes(c: &mut Criterion) {
-    let sample_graph = fs::read_to_string("test/sample-graph.dot")
-        .expect("Failed to read sample-graph.dot");
+    let sample_graph =
+        fs::read_to_string("test/sample-graph.dot").expect("Failed to read sample-graph.dot");
 
     let mut group = c.benchmark_group("graph_size_scaling");
 
