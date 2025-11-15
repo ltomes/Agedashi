@@ -62,3 +62,12 @@ test/examples/lambda.zip
 
 # Test output (visual regression artifacts)
 test/output/
+
+# Benchmark results
+/target/criterion/
+bench-output.txt
+
+# Coverage reports
+/coverage/
+tarpaulin-report.html
+cobertura.xml
