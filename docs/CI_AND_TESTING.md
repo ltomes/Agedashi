@@ -93,7 +93,7 @@ The primary CI workflow runs on every PR and push to `develop`/`main`.
 ##### 2. Test Matrix
 Tests across:
 - **Operating Systems**: Linux, macOS, Windows
-- **Rust Versions**: stable, beta, MSRV (1.70.0)
+- **Rust Versions**: stable, beta, MSRV (1.74.0)
 - **Total**: 7 test configurations
 
 **Matrix**:
@@ -102,7 +102,7 @@ os: [ubuntu-latest, macos-latest, windows-latest]
 rust: [stable, beta]
 include:
   - os: ubuntu-latest
-    rust: 1.70.0  # MSRV
+    rust: 1.74.0  # MSRV
 ```
 
 **Tests Run**:
