@@ -328,7 +328,7 @@ fn test_debug_mode() {
     // Set debug environment variable
     let binary = get_binary_path();
     let output = Command::new(&binary)
-        .args(&["--output", "png", "--name", "test-debug"])
+        .args(["--output", "png", "--name", "test-debug"])
         .env("AGEDASHI_DEBUG", "1")
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
