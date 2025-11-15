@@ -113,7 +113,7 @@ fn convert_svg_to_png(svg_path: &Path, png_path: &Path, size: u32) -> Result<()>
     resvg::render(&tree, transform, &mut pixmap.as_mut());
 
     // Apply rounded corners
-    let corner_radius = (size as f32 * 0.1) as f32; // 10% radius for nice rounded corners
+    let corner_radius = size as f32 * 0.1; // 10% radius for nice rounded corners
     apply_rounded_corners(&mut pixmap, corner_radius);
 
     // Save as PNG
@@ -356,7 +356,7 @@ fn find_icon_in_dir(dir: &Path, pattern: &str) -> Option<PathBuf> {
                     if filename.contains(pattern) && filename.ends_with(".svg") {
                         // Prefer 64x64 size icons (though SVGs are scalable)
                         if filename.contains("_64")
-                            || path.to_str().map_or(false, |p| p.contains("/64/"))
+                            || path.to_str().is_some_and(|p| p.contains("/64/"))
                         {
                             return Some(path);
                         }
@@ -699,7 +699,7 @@ fn generate_dot_graph(
         }
     }
 
-    dot.push_str("\n");
+    dot.push('\n');
 
     // Generate edges
     for (from, to) in &graph.edges {
