@@ -69,6 +69,15 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
 
+      - name: Verify Rust installation
+        run: |
+          echo "Checking Rust installation..."
+          which rustc || echo "rustc not in PATH"
+          which cargo || echo "cargo not in PATH"
+          rustc --version || echo "rustc failed"
+          cargo --version || echo "cargo failed"
+          echo "PATH: $PATH"
+
       - name: Install GraphViz (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y graphviz
