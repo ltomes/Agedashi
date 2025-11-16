@@ -81,11 +81,11 @@ struct Cli {
     #[arg(long, default_value = "hybrid")]
     connection_style: String,
 
-    /// Edge routing algorithm (ortho, curved, polyline, splines)
+    /// Edge routing algorithm (curved, ortho, trace, polyline)
+    /// - curved: smooth curved edges with node avoidance
     /// - ortho: orthogonal (horizontal/vertical) routing
-    /// - curved: smooth curved edges
+    /// - trace: circuit board PCB style with strict spacing tolerances
     /// - polyline: straight segments with angles
-    /// - splines: default spline routing
     #[arg(long, default_value = "curved")]
     edge_routing: String,
 
@@ -699,9 +699,56 @@ fn generate_dot_graph(
         color, edge_width, arrowhead, arrowtail, dir, connection_size
     ));
     dot.push_str(&format!("    rankdir={};\n", direction));
-    dot.push_str(&format!("    splines={};\n", edge_routing));
-    dot.push_str("    nodesep=1.0;\n");
-    dot.push_str("    ranksep=1.5;\n\n");
+
+    // Configure routing mode with appropriate parameters for trace-style behavior
+    // Each mode has specific spacing and overlap settings to avoid edge-node intersections
+    match edge_routing {
+        "curved" => {
+            // Smooth curved routing with node avoidance
+            dot.push_str("    splines=curved;\n");
+            dot.push_str("    overlap=false;\n");
+            dot.push_str("    sep=\"+15,15\";\n");
+            dot.push_str("    esep=\"+12,12\";\n");
+            dot.push_str("    nodesep=1.2;\n");
+            dot.push_str("    ranksep=1.8;\n");
+        }
+        "ortho" => {
+            // Orthogonal routing (horizontal/vertical only)
+            dot.push_str("    splines=ortho;\n");
+            dot.push_str("    overlap=scalexy;\n");
+            dot.push_str("    nodesep=1.5;\n");
+            dot.push_str("    ranksep=2.0;\n");
+        }
+        "trace" => {
+            // Circuit board trace style with strict spacing tolerances
+            // Mimics PCB trace routing with controlled angles and spacing
+            dot.push_str("    splines=ortho;\n");
+            dot.push_str("    overlap=scalexy;\n");
+            dot.push_str("    sep=\"+25,25\";\n");
+            dot.push_str("    esep=\"+20,20\";\n");
+            dot.push_str("    nodesep=2.0;\n");
+            dot.push_str("    ranksep=2.5;\n");
+        }
+        "polyline" => {
+            // Straight segments with angled connections
+            dot.push_str("    splines=polyline;\n");
+            dot.push_str("    overlap=false;\n");
+            dot.push_str("    sep=\"+10,10\";\n");
+            dot.push_str("    nodesep=1.2;\n");
+            dot.push_str("    ranksep=1.8;\n");
+        }
+        _ => {
+            // Default to curved
+            dot.push_str("    splines=curved;\n");
+            dot.push_str("    overlap=false;\n");
+            dot.push_str("    sep=\"+15,15\";\n");
+            dot.push_str("    esep=\"+12,12\";\n");
+            dot.push_str("    nodesep=1.2;\n");
+            dot.push_str("    ranksep=1.8;\n");
+        }
+    }
+
+    dot.push('\n');
 
     // Filter AWS resources only
     let aws_resources: Vec<_> = graph
