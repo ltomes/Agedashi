@@ -113,17 +113,21 @@ fn test_my_feature() {
     let sample_graph = fs::read_to_string("test/sample-graph.dot")
         .expect("Failed to read sample-graph.dot");
 
-    std::env::set_current_dir(&temp_dir).expect("Failed to change directory");
-
+    // Pass temp_dir.path() to run_agedashi to set working directory for subprocess
     let output = run_agedashi(
         &sample_graph,
-        &["--output", "png", "--name", "test-output"]
+        &["--output", "png", "--name", "test-output"],
+        Some(temp_dir.path())  // Sets working dir for subprocess only
     );
 
     assert!(output.status.success());
     assert!(temp_dir.path().join("test-output.png").exists());
 }
 ```
+
+**Note**: Always use `run_agedashi()` with the `working_dir` parameter instead of calling
+`std::env::set_current_dir()`. The latter modifies global process state and causes race
+conditions when tests run in parallel.
 
 ### Unit Test Example
 
