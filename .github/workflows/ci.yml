@@ -64,25 +64,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install build tools (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y build-essential
+      - name: Setup Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+        if: matrix.rust == 'stable'
 
-      - name: Install build tools (macOS)
-        if: matrix.os == 'macos-latest'
-        run: xcode-select --install 2>&1 || true
+      - name: Setup Rust toolchain (beta)
+        uses: dtolnay/rust-toolchain@beta
+        if: matrix.rust == 'beta'
 
-      - name: Install Rust ${{ matrix.rust }}
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ matrix.rust }}
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Verify Rust installation
-        run: |
-          source $HOME/.cargo/env
-          echo "Rust toolchain: ${{ matrix.rust }}"
-          rustc --version
-          cargo --version
+      - name: Setup Rust toolchain (MSRV)
+        uses: dtolnay/rust-toolchain@master
+        if: matrix.rust == '1.85.0'
+        with:
+          toolchain: '1.85.0'
 
       - name: Install GraphViz (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
