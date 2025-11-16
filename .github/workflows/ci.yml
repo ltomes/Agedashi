@@ -137,11 +137,15 @@ jobs:
       - name: Build
         run: cargo build --verbose
 
-      - name: Run all tests
+      - name: Run all tests (Windows)
+        if: matrix.os == 'windows-latest'
         run: cargo test --verbose
         env:
-          # Ensure GraphViz is in PATH for Windows (for subprocess spawning in tests)
-          PATH: ${{ matrix.os == 'windows-latest' && format('{0};C:\Program Files\Graphviz\bin', env.PATH) || env.PATH }}
+          PATH: ${{ env.PATH }};C:\Program Files\Graphviz\bin
+
+      - name: Run all tests (Unix)
+        if: matrix.os != 'windows-latest'
+        run: cargo test --verbose
 
       - name: Build release binary
         run: cargo build --release --verbose
