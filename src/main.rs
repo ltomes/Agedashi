@@ -71,6 +71,31 @@ struct Cli {
     /// Color for edges and text (hex color code)
     #[arg(short, long, default_value = "#2D3436")]
     color: String,
+
+    /// Connection style (dot, odot, arrow, hybrid, none)
+    /// - dot: filled circles at both ends (circuit style)
+    /// - odot: hollow circles at both ends (lighter circuit style)
+    /// - arrow: traditional directional arrows
+    /// - hybrid: dot at source, arrow at target
+    /// - none: plain lines without decorations
+    #[arg(long, default_value = "hybrid")]
+    connection_style: String,
+
+    /// Edge routing algorithm (ortho, curved, polyline, splines)
+    /// - ortho: orthogonal (horizontal/vertical) routing
+    /// - curved: smooth curved edges
+    /// - polyline: straight segments with angles
+    /// - splines: default spline routing
+    #[arg(long, default_value = "curved")]
+    edge_routing: String,
+
+    /// Edge line width (thickness)
+    #[arg(long, default_value = "2.5")]
+    edge_width: f32,
+
+    /// Size of connection points (arrows, dots)
+    #[arg(long, default_value = "1.2")]
+    connection_size: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -645,6 +670,10 @@ fn generate_dot_graph(
     temp_dir: &Path,
     icon_size: u32,
     color: &str,
+    connection_style: &str,
+    edge_routing: &str,
+    edge_width: f32,
+    connection_size: f32,
 ) -> Result<String> {
     let mut dot = String::new();
 
@@ -654,12 +683,23 @@ fn generate_dot_graph(
         "    graph [fontname=\"Arial\", fontsize=14, bgcolor=\"transparent\", pad=\"0.5\"];\n",
     );
     dot.push_str("    node [fontname=\"Arial\", fontsize=11];\n");
+
+    // Configure edge styling based on connection style
+    let (arrowhead, arrowtail, dir) = match connection_style {
+        "dot" => ("dot", "dot", "both"),
+        "odot" => ("odot", "odot", "both"),
+        "arrow" => ("normal", "none", "forward"),
+        "hybrid" => ("normal", "dot", "both"),
+        "none" => ("none", "none", "forward"),
+        _ => ("normal", "dot", "both"), // default to hybrid
+    };
+
     dot.push_str(&format!(
-        "    edge [fontname=\"Arial\", fontsize=10, color=\"{}\", penwidth=2.0, arrowsize=0.7];\n",
-        color
+        "    edge [fontname=\"Arial\", fontsize=10, color=\"{}\", penwidth={}, arrowhead={}, arrowtail={}, dir={}, arrowsize={}];\n",
+        color, edge_width, arrowhead, arrowtail, dir, connection_size
     ));
     dot.push_str(&format!("    rankdir={};\n", direction));
-    dot.push_str("    splines=ortho;\n");
+    dot.push_str(&format!("    splines={};\n", edge_routing));
     dot.push_str("    nodesep=1.0;\n");
     dot.push_str("    ranksep=1.5;\n\n");
 
@@ -740,11 +780,22 @@ fn generate_dot_graph(
 
     dot.push('\n');
 
-    // Generate edges
+    // Generate edges with compass point ports for consistent connections
+    // TB (top-to-bottom): edges exit from south (s) and enter from north (n)
+    // LR (left-to-right): edges exit from east (e) and enter from west (w)
+    let (tailport, headport) = if direction == "TB" {
+        ("s", "n")
+    } else {
+        ("e", "w")
+    };
+
     for (from, to) in &graph.edges {
         match (node_map.get(from), node_map.get(to)) {
             (Some(from_node), Some(to_node)) => {
-                dot.push_str(&format!("    {} -> {};\n", from_node, to_node));
+                dot.push_str(&format!(
+                    "    {}:{} -> {}:{};\n",
+                    from_node, tailport, to_node, headport
+                ));
             }
             (None, _) => {
                 eprintln!(
@@ -905,6 +956,10 @@ fn main() -> Result<()> {
         temp_dir.path(),
         128,
         &cli.color,
+        &cli.connection_style,
+        &cli.edge_routing,
+        cli.edge_width,
+        cli.connection_size,
     )?;
 
     // Output file path
@@ -1503,6 +1558,10 @@ digraph {
             &temp_graph_dir,
             128,
             "#2D3436",
+            "hybrid",
+            "curved",
+            2.5,
+            1.2,
         )
         .expect("Failed to generate dot graph");
 
@@ -1709,6 +1768,10 @@ digraph {
             &temp_graph_dir,
             128,
             "#2D3436",
+            "hybrid",
+            "curved",
+            2.5,
+            1.2,
         )
         .expect("Failed to generate dot graph");
 
