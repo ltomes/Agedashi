@@ -782,16 +782,24 @@ fn execute_dot_command(dot_content: &str, output_format: &str, output_file: &str
     // Create temporary file for DOT content
     let mut temp_file = NamedTempFile::new()?;
     temp_file.write_all(dot_content.as_bytes())?;
-    let temp_path = temp_file.path();
+    temp_file.flush()?;
+
+    // Get the path before executing dot
+    // On Windows, we need to persist the file to release the lock
+    let (file, temp_path) = temp_file.keep()?;
+    drop(file); // Explicitly close the file handle
 
     // Execute dot command
     let output = Command::new("dot")
         .arg(format!("-T{}", output_format))
-        .arg(temp_path)
+        .arg(&temp_path)
         .arg("-o")
         .arg(output_file)
         .output()
         .context("Failed to execute dot command")?;
+
+    // Clean up the temp file
+    let _ = std::fs::remove_file(&temp_path);
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
