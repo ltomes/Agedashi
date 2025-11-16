@@ -65,17 +65,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust ${{ matrix.rust }}
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ matrix.rust }}
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Verify Rust installation
         run: |
-          echo "Checking Rust installation..."
-          rustc --version || echo "rustc not found!"
-          cargo --version || echo "cargo not found!"
-          echo "PATH=$PATH"
-          which cargo || echo "cargo not in PATH"
+          source $HOME/.cargo/env
+          echo "Rust toolchain: ${{ matrix.rust }}"
+          rustc --version
+          cargo --version
 
       - name: Install GraphViz (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
