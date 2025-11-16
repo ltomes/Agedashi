@@ -702,7 +702,8 @@ fn generate_dot_graph(
 
     // Configure routing mode with appropriate parameters for trace-style behavior
     // Each mode has specific spacing and overlap settings to avoid edge-node intersections
-    match edge_routing {
+    // Also set node margin to prevent edges from touching node graphics
+    let node_margin = match edge_routing {
         "curved" => {
             // Smooth curved routing with node avoidance
             dot.push_str("    splines=curved;\n");
@@ -711,6 +712,7 @@ fn generate_dot_graph(
             dot.push_str("    esep=\"+12,12\";\n");
             dot.push_str("    nodesep=1.2;\n");
             dot.push_str("    ranksep=1.8;\n");
+            0.15 // Moderate margin for curved routing
         }
         "ortho" => {
             // Orthogonal routing (horizontal/vertical only)
@@ -718,6 +720,7 @@ fn generate_dot_graph(
             dot.push_str("    overlap=scalexy;\n");
             dot.push_str("    nodesep=1.5;\n");
             dot.push_str("    ranksep=2.0;\n");
+            0.2 // Good margin for orthogonal routing
         }
         "trace" => {
             // Circuit board trace style with strict spacing tolerances
@@ -728,6 +731,7 @@ fn generate_dot_graph(
             dot.push_str("    esep=\"+20,20\";\n");
             dot.push_str("    nodesep=2.0;\n");
             dot.push_str("    ranksep=2.5;\n");
+            0.3 // Maximum margin for trace routing - prevents any overlap
         }
         "polyline" => {
             // Straight segments with angled connections
@@ -736,6 +740,7 @@ fn generate_dot_graph(
             dot.push_str("    sep=\"+10,10\";\n");
             dot.push_str("    nodesep=1.2;\n");
             dot.push_str("    ranksep=1.8;\n");
+            0.15 // Moderate margin for polyline routing
         }
         _ => {
             // Default to curved
@@ -745,8 +750,9 @@ fn generate_dot_graph(
             dot.push_str("    esep=\"+12,12\";\n");
             dot.push_str("    nodesep=1.2;\n");
             dot.push_str("    ranksep=1.8;\n");
+            0.15 // Moderate margin for default routing
         }
-    }
+    };
 
     dot.push('\n');
 
@@ -813,9 +819,11 @@ fn generate_dot_graph(
             "<<TABLE BORDER=\"0\" CELLBORDER=\"0\" CELLSPACING=\"0\"><TR><TD FIXEDSIZE=\"TRUE\" WIDTH=\"{}\" HEIGHT=\"{}\"><IMG SRC=\"{}\"/></TD></TR><TR><TD><FONT COLOR=\"{}\">{}</FONT></TD></TR></TABLE>>",
             icon_size, icon_size, icon_path_str, fallback_color, escaped_label
         );
+        // Add margin to create clearance between node graphics and edge connection points
+        // This prevents traces from overlapping with resource icons
         dot.push_str(&format!(
-            "    {} [label={}, shape=plaintext, fontsize=10];\n",
-            node_id, html_label
+            "    {} [label={}, shape=plaintext, fontsize=10, margin=\"{}\"];\n",
+            node_id, html_label, node_margin
         ));
 
         // Check for duplicate resource names
