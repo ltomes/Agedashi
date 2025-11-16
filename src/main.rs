@@ -662,6 +662,7 @@ fn escape_html(text: &str) -> String {
         .replace('\'', "&apos;")
 }
 
+#[allow(clippy::too_many_arguments)]
 fn generate_dot_graph(
     graph: &TerraformGraph,
     name: &str,
@@ -835,21 +836,15 @@ fn generate_dot_graph(
 
     dot.push('\n');
 
-    // Generate edges with compass point ports for consistent connections
-    // TB (top-to-bottom): edges exit from south (s) and enter from north (n)
-    // LR (left-to-right): edges exit from east (e) and enter from west (w)
-    let (tailport, headport) = if direction == "TB" {
-        ("s", "n")
-    } else {
-        ("e", "w")
-    };
-
+    // Generate edges
+    // Note: Compass point ports (e.g., node:n, node:s) don't work with HTML table labels
+    // The node margins provide adequate spacing without needing explicit port specifications
     for (from, to) in &graph.edges {
         match (node_map.get(from), node_map.get(to)) {
             (Some(from_node), Some(to_node)) => {
                 dot.push_str(&format!(
-                    "    {}:{} -> {}:{};\n",
-                    from_node, tailport, to_node, headport
+                    "    {} -> {};\n",
+                    from_node, to_node
                 ));
             }
             (None, _) => {
