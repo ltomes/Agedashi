@@ -842,10 +842,7 @@ fn generate_dot_graph(
     for (from, to) in &graph.edges {
         match (node_map.get(from), node_map.get(to)) {
             (Some(from_node), Some(to_node)) => {
-                dot.push_str(&format!(
-                    "    {} -> {};\n",
-                    from_node, to_node
-                ));
+                dot.push_str(&format!("    {} -> {};\n", from_node, to_node));
             }
             (None, _) => {
                 eprintln!(
