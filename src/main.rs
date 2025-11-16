@@ -703,25 +703,30 @@ fn generate_dot_graph(
 
     // Configure routing mode with appropriate parameters for trace-style behavior
     // Each mode has specific spacing and overlap settings to avoid edge-node intersections
+    // Dramatically increased spacing to minimize line crossings and overlaps
     // Also set node margin to prevent edges from touching node graphics
     let node_margin = match edge_routing {
         "curved" => {
             // Smooth curved routing with node avoidance
             dot.push_str("    splines=curved;\n");
             dot.push_str("    overlap=false;\n");
-            dot.push_str("    sep=\"+15,15\";\n");
-            dot.push_str("    esep=\"+12,12\";\n");
-            dot.push_str("    nodesep=1.2;\n");
-            dot.push_str("    ranksep=1.8;\n");
-            0.15 // Moderate margin for curved routing
+            dot.push_str("    concentrate=true;\n"); // Merge parallel edges
+            dot.push_str("    sep=\"+25,25\";\n");
+            dot.push_str("    esep=\"+20,20\";\n");
+            dot.push_str("    nodesep=2.0;\n");
+            dot.push_str("    ranksep=2.5;\n");
+            0.25 // Increased margin for curved routing
         }
         "ortho" => {
             // Orthogonal routing (horizontal/vertical only)
             dot.push_str("    splines=ortho;\n");
             dot.push_str("    overlap=scalexy;\n");
-            dot.push_str("    nodesep=1.5;\n");
-            dot.push_str("    ranksep=2.0;\n");
-            0.2 // Good margin for orthogonal routing
+            dot.push_str("    concentrate=true;\n"); // Merge parallel edges
+            dot.push_str("    sep=\"+30,30\";\n");
+            dot.push_str("    esep=\"+25,25\";\n");
+            dot.push_str("    nodesep=2.5;\n");
+            dot.push_str("    ranksep=3.0;\n");
+            0.35 // Increased margin for orthogonal routing
         }
         "trace" => {
             // Circuit board trace style with strict spacing tolerances
@@ -730,30 +735,33 @@ fn generate_dot_graph(
             dot.push_str("    splines=polyline;\n");
             dot.push_str("    overlap=scalexy;\n");
             dot.push_str("    concentrate=true;\n"); // Merge parallel edges
-            dot.push_str("    sep=\"+30,30\";\n");
-            dot.push_str("    esep=\"+25,25\";\n");
-            dot.push_str("    nodesep=2.5;\n");
-            dot.push_str("    ranksep=3.0;\n");
-            0.35 // Maximum margin for trace routing - prevents any overlap
+            dot.push_str("    sep=\"+40,40\";\n");
+            dot.push_str("    esep=\"+35,35\";\n");
+            dot.push_str("    nodesep=3.5;\n");
+            dot.push_str("    ranksep=4.0;\n");
+            0.45 // Maximum margin for trace routing - prevents any overlap
         }
         "polyline" => {
             // Straight segments with angled connections
             dot.push_str("    splines=polyline;\n");
             dot.push_str("    overlap=false;\n");
-            dot.push_str("    sep=\"+10,10\";\n");
-            dot.push_str("    nodesep=1.2;\n");
-            dot.push_str("    ranksep=1.8;\n");
-            0.15 // Moderate margin for polyline routing
+            dot.push_str("    concentrate=true;\n"); // Merge parallel edges
+            dot.push_str("    sep=\"+25,25\";\n");
+            dot.push_str("    esep=\"+20,20\";\n");
+            dot.push_str("    nodesep=2.0;\n");
+            dot.push_str("    ranksep=2.5;\n");
+            0.25 // Increased margin for polyline routing
         }
         _ => {
             // Default to curved
             dot.push_str("    splines=curved;\n");
             dot.push_str("    overlap=false;\n");
-            dot.push_str("    sep=\"+15,15\";\n");
-            dot.push_str("    esep=\"+12,12\";\n");
-            dot.push_str("    nodesep=1.2;\n");
-            dot.push_str("    ranksep=1.8;\n");
-            0.15 // Moderate margin for default routing
+            dot.push_str("    concentrate=true;\n"); // Merge parallel edges
+            dot.push_str("    sep=\"+25,25\";\n");
+            dot.push_str("    esep=\"+20,20\";\n");
+            dot.push_str("    nodesep=2.0;\n");
+            dot.push_str("    ranksep=2.5;\n");
+            0.25 // Increased margin for default routing
         }
     };
 
@@ -1025,9 +1033,10 @@ fn main() -> Result<()> {
     // Execute dot command
     execute_dot_command(&dot_content, &cli.output, &output_file)?;
 
-    // For SVG output, post-process to embed images as base64 data URIs
+    // For SVG output, post-process to embed images as base64 data URIs and add line jumps
     if cli.output == "svg" {
         embed_images_in_svg(&output_file)?;
+        add_line_jumps_to_svg(&output_file)?;
     }
 
     println!("Diagram generated successfully: {}", output_file);
@@ -1061,6 +1070,62 @@ fn embed_images_in_svg(svg_file: &str) -> Result<()> {
     // Write the modified SVG back
     fs::write(svg_file, modified_svg)
         .context(format!("Failed to write modified SVG: {}", svg_file))?;
+
+    Ok(())
+}
+
+// Add line jumps (gaps) where edges cross in SVG
+// Uses the "gap" style where one line stops before the crossing and continues after
+fn add_line_jumps_to_svg(svg_file: &str) -> Result<()> {
+    let svg_content = fs::read_to_string(svg_file).context(format!(
+        "Failed to read SVG file for line jumps: {}",
+        svg_file
+    ))?;
+
+    // Extract all edge paths from the SVG
+    // Look for <g class="edge"> elements and their child <path> elements
+    let re_edge_group = Regex::new(r#"<g[^>]*class="edge"[^>]*>(.*?)</g>"#)?;
+    let re_path =
+        Regex::new(r#"<path[^>]*fill="none"[^>]*stroke="([^"]*)"[^>]*d="([^"]+)"[^>]*/>"#)?;
+
+    let mut edge_paths = Vec::new();
+
+    // Find all edge groups and extract their main path (not arrowheads)
+    for edge_cap in re_edge_group.captures_iter(&svg_content) {
+        let edge_content = &edge_cap[1];
+
+        // Find the longest path in this edge group (main line, not arrowhead)
+        let mut longest_path = ("".to_string(), "".to_string());
+        let mut max_length = 0;
+
+        for path_cap in re_path.captures_iter(edge_content) {
+            let stroke = path_cap[1].to_string();
+            let d_attr = path_cap[2].to_string();
+
+            if d_attr.len() > max_length {
+                max_length = d_attr.len();
+                longest_path = (stroke, d_attr);
+            }
+        }
+
+        if max_length > 20 {
+            // Only include substantial paths
+            edge_paths.push(longest_path);
+        }
+    }
+
+    // TODO: Implement full line jump detection and insertion
+    // This requires:
+    // 1. Parse SVG path commands (M, L, C, etc.) into line segments
+    // 2. For each pair of paths, detect intersection points
+    // 3. At each crossing, modify the "under" path to add a small gap
+    // 4. Replace the original paths in the SVG with modified versions
+    //
+    // For now, we rely on improved spacing parameters (concentrate=true, increased
+    // nodesep/ranksep/sep/esep) to minimize crossings and their visual impact.
+    //
+    // A complete implementation would use a 2D geometry library for intersection
+    // detection and SVG path manipulation.
 
     Ok(())
 }
