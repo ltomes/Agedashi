@@ -725,14 +725,16 @@ fn generate_dot_graph(
         }
         "trace" => {
             // Circuit board trace style with strict spacing tolerances
-            // Mimics PCB trace routing with controlled angles and spacing
-            dot.push_str("    splines=ortho;\n");
+            // Uses polyline for better handling of misaligned nodes
+            // Mimics PCB trace routing with controlled spacing and clean angles
+            dot.push_str("    splines=polyline;\n");
             dot.push_str("    overlap=scalexy;\n");
-            dot.push_str("    sep=\"+25,25\";\n");
-            dot.push_str("    esep=\"+20,20\";\n");
-            dot.push_str("    nodesep=2.0;\n");
-            dot.push_str("    ranksep=2.5;\n");
-            0.3 // Maximum margin for trace routing - prevents any overlap
+            dot.push_str("    concentrate=true;\n"); // Merge parallel edges
+            dot.push_str("    sep=\"+30,30\";\n");
+            dot.push_str("    esep=\"+25,25\";\n");
+            dot.push_str("    nodesep=2.5;\n");
+            dot.push_str("    ranksep=3.0;\n");
+            0.35 // Maximum margin for trace routing - prevents any overlap
         }
         "polyline" => {
             // Straight segments with angled connections
