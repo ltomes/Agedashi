@@ -58,9 +58,9 @@ jobs:
         rust: [stable, beta]
         include:
           # Test MSRV (Minimum Supported Rust Version) on Linux only
-          # Transitive dependencies require Rust 1.80.0+
+          # Edition 2024 support requires Rust 1.85.0+
           - os: ubuntu-latest
-            rust: 1.80.0
+            rust: 1.85.0
     steps:
       - uses: actions/checkout@v4
 
@@ -81,10 +81,28 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           choco install graphviz -y
-          echo "C:\Program Files\Graphviz\bin" >> $env:GITHUB_PATH
+          Add-Content -Path $env:GITHUB_PATH -Value "C:\Program Files\Graphviz\bin"
         shell: pwsh
 
-      - name: Verify GraphViz installation
+      - name: Verify GraphViz installation (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          # Verify GraphViz installation
+          if (Test-Path "C:\Program Files\Graphviz\bin\dot.exe") {
+            Write-Host "✓ GraphViz found at standard location"
+          } else {
+            Write-Host "✗ GraphViz not found at C:\Program Files\Graphviz\bin"
+            Get-ChildItem "C:\Program Files" -Filter "Graphviz*" -Directory -ErrorAction SilentlyContinue
+          }
+          # Check PATH
+          Write-Host "Current PATH includes:"
+          $env:PATH -split ';' | Where-Object { $_ -like '*graphviz*' }
+          # Try to run dot
+          & "C:\Program Files\Graphviz\bin\dot.exe" -V
+        shell: pwsh
+
+      - name: Verify GraphViz installation (Unix)
+        if: matrix.os != 'windows-latest'
         run: dot -V
 
       - name: Cache cargo registry and git
@@ -110,6 +128,9 @@ jobs:
 
       - name: Run all tests
         run: cargo test --verbose
+        env:
+          # Ensure GraphViz is in PATH for Windows (for subprocess spawning in tests)
+          PATH: ${{ matrix.os == 'windows-latest' && format('{0};C:\Program Files\Graphviz\bin', env.PATH) || env.PATH }}
 
       - name: Build release binary
         run: cargo build --release --verbose
