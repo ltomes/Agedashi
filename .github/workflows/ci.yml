@@ -140,8 +140,6 @@ jobs:
       - name: Run all tests (Windows)
         if: matrix.os == 'windows-latest'
         run: cargo test --verbose
-        env:
-          PATH: ${{ env.PATH }};C:\Program Files\Graphviz\bin
 
       - name: Run all tests (Unix)
         if: matrix.os != 'windows-latest'
