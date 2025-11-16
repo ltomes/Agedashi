@@ -64,6 +64,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install build tools (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y build-essential
+
+      - name: Install build tools (macOS)
+        if: matrix.os == 'macos-latest'
+        run: xcode-select --install 2>&1 || true
+
       - name: Install Rust ${{ matrix.rust }}
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ matrix.rust }}
