@@ -662,6 +662,64 @@ fn escape_html(text: &str) -> String {
         .replace('\'', "&apos;")
 }
 
+/// Distributes connection points across three sides of a node, avoiding the label side
+///
+/// For TB (top-bottom) layout: labels are at south, so use n, ne, e, w, nw (avoid s, se, sw)
+/// For LR (left-right) layout: labels are at south, so use n, ne, e, w, nw (avoid s, se, sw)
+///
+/// This ensures lines don't overlap with resource labels and are distributed to prevent contact
+fn distribute_ports_on_three_sides(edge_count: usize, direction: &str, is_incoming: bool) -> Vec<&'static str> {
+    if edge_count == 0 {
+        return vec![];
+    }
+
+    // Define available ports on three sides (avoiding south where labels are)
+    // Priority order: spread across top, east, west
+    let available_ports: Vec<&str> = match direction {
+        "TB" | "BT" => {
+            // Top-Bottom layout: avoid south (s, se, sw) where label is
+            if is_incoming {
+                // Incoming edges: prefer top and sides
+                vec!["n", "ne", "nw", "e", "w"]
+            } else {
+                // Outgoing edges: prefer top and sides
+                vec!["n", "ne", "nw", "e", "w"]
+            }
+        }
+        "LR" | "RL" => {
+            // Left-Right layout: still avoid south where label is
+            if is_incoming {
+                vec!["n", "ne", "nw", "e", "w"]
+            } else {
+                vec!["n", "ne", "nw", "e", "w"]
+            }
+        }
+        _ => {
+            // Default: avoid south
+            vec!["n", "ne", "nw", "e", "w"]
+        }
+    };
+
+    let mut result = Vec::new();
+
+    // Distribute edges evenly across available ports
+    if edge_count <= available_ports.len() {
+        // Fewer edges than ports: use evenly spaced ports
+        let step = available_ports.len() as f32 / edge_count as f32;
+        for i in 0..edge_count {
+            let idx = (i as f32 * step).floor() as usize;
+            result.push(available_ports[idx.min(available_ports.len() - 1)]);
+        }
+    } else {
+        // More edges than ports: cycle through ports, distributing evenly
+        for i in 0..edge_count {
+            result.push(available_ports[i % available_ports.len()]);
+        }
+    }
+
+    result
+}
+
 #[allow(clippy::too_many_arguments)]
 fn generate_dot_graph(
     graph: &TerraformGraph,
@@ -846,13 +904,65 @@ fn generate_dot_graph(
 
     dot.push('\n');
 
-    // Generate edges
-    // Note: Compass point ports (e.g., node:n, node:s) don't work with HTML table labels
-    // The node margins provide adequate spacing without needing explicit port specifications
+    // Count incoming and outgoing edges for each node to enable smart port distribution
+    let mut outgoing_edges: HashMap<String, Vec<String>> = HashMap::new();
+    let mut incoming_edges: HashMap<String, Vec<String>> = HashMap::new();
+
+    for (from, to) in &graph.edges {
+        if let Some(from_node) = node_map.get(from) {
+            outgoing_edges.entry(from_node.clone())
+                .or_insert_with(Vec::new)
+                .push(to.clone());
+        }
+        if let Some(to_node) = node_map.get(to) {
+            incoming_edges.entry(to_node.clone())
+                .or_insert_with(Vec::new)
+                .push(from.clone());
+        }
+    }
+
+    // Assign ports for each node's outgoing edges
+    let mut outgoing_port_assignments: HashMap<String, HashMap<String, &str>> = HashMap::new();
+    for (node, targets) in &outgoing_edges {
+        let ports = distribute_ports_on_three_sides(targets.len(), direction, false);
+        let mut port_map = HashMap::new();
+        for (i, target) in targets.iter().enumerate() {
+            port_map.insert(target.clone(), ports[i]);
+        }
+        outgoing_port_assignments.insert(node.clone(), port_map);
+    }
+
+    // Assign ports for each node's incoming edges
+    let mut incoming_port_assignments: HashMap<String, HashMap<String, &str>> = HashMap::new();
+    for (node, sources) in &incoming_edges {
+        let ports = distribute_ports_on_three_sides(sources.len(), direction, true);
+        let mut port_map = HashMap::new();
+        for (i, source) in sources.iter().enumerate() {
+            port_map.insert(source.clone(), ports[i]);
+        }
+        incoming_port_assignments.insert(node.clone(), port_map);
+    }
+
+    // Generate edges with smart port distribution
+    // Use headport/tailport attributes (not node:port syntax) to work with HTML table labels
     for (from, to) in &graph.edges {
         match (node_map.get(from), node_map.get(to)) {
             (Some(from_node), Some(to_node)) => {
-                dot.push_str(&format!("    {} -> {};\n", from_node, to_node));
+                // Get the assigned ports for this edge
+                let tailport = outgoing_port_assignments
+                    .get(from_node)
+                    .and_then(|map| map.get(to))
+                    .unwrap_or(&"c");
+
+                let headport = incoming_port_assignments
+                    .get(to_node)
+                    .and_then(|map| map.get(from))
+                    .unwrap_or(&"c");
+
+                dot.push_str(&format!(
+                    "    {} -> {} [headport=\"{}\", tailport=\"{}\"];\n",
+                    from_node, to_node, headport, tailport
+                ));
             }
             (None, _) => {
                 eprintln!(
